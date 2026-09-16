@@ -38,7 +38,11 @@ def trace(prev, source, target):
     source == target이면 노드 하나만 담은 목록을 반환합니다.
     이 함수는 dijkstra에서 도착 노드를 확정한 뒤 호출합니다.
     """
-    raise NotImplementedError("trace를 구현합니다")
+    path = [target]
+    while path[-1] != source:
+        path.append(prev[path[-1]])
+    path.reverse()
+    return path
 
 
 def dijkstra(graph, source, target):
@@ -74,7 +78,38 @@ def dijkstra(graph, source, target):
 
     도착점을 처음 발견해 힙에 넣은 시점에는 끝내지 않습니다.
     """
-    raise NotImplementedError("dijkstra를 구현합니다")
+    if source not in graph.adj or target not in graph.adj:
+        raise NoPath("경로가 없습니다")
+
+    if source == target:
+        return 0.0, [source], 1
+
+    dist = {source: 0.0}
+    prev = {}
+    done = set()
+    heap = [(0.0, source)]
+
+    while heap:
+        d, u = heapq.heappop(heap)
+
+        if u in done:
+            continue
+        done.add(u)
+
+        if u == target:
+            path = trace(prev, source, target)
+            return d, path, len(done)
+
+        for v, seconds_, _ in graph.neighbors(u):
+            if v in done:
+                continue
+            new_dist = d + seconds_
+            if new_dist < dist.get(v, float("inf")):
+                dist[v] = new_dist
+                prev[v] = u
+                heapq.heappush(heap, (new_dist, v))
+
+    raise NoPath("경로가 없습니다")
 
 
 def astar(graph, source, target):
@@ -93,7 +128,45 @@ def astar(graph, source, target):
       만족해야 확정 노드를 다시 처리하지 않는 방식을 쓸 수 있습니다.
     - 노트북에서 이번 목적지에 대한 이 조건을 확인한 뒤 실행합니다.
     """
-    raise NotImplementedError("추가 실습: astar를 구현합니다")
+    if source not in graph.adj or target not in graph.adj:
+        raise NoPath("경로가 없습니다")
+
+    if source == target:
+        return 0.0, [source], 1
+
+    vmax = graph.max_speed_kmh()
+    tlat, tlon = graph.coord[target]
+
+    def h(node):
+        lat, lon = graph.coord[node]
+        return haversine_km(lat, lon, tlat, tlon) / max(vmax, 1.0) * 3600
+
+    dist = {source: 0.0}
+    prev = {}
+    done = set()
+    heap = [(h(source), 0.0, source)]
+
+    while heap:
+        _, d, u = heapq.heappop(heap)
+
+        if u in done:
+            continue
+        done.add(u)
+
+        if u == target:
+            path = trace(prev, source, target)
+            return d, path, len(done)
+
+        for v, seconds_, _ in graph.neighbors(u):
+            if v in done:
+                continue
+            new_dist = d + seconds_
+            if new_dist < dist.get(v, float("inf")):
+                dist[v] = new_dist
+                prev[v] = u
+                heapq.heappush(heap, (new_dist + h(v), new_dist, v))
+
+    raise NoPath("경로가 없습니다")
 
 
 if __name__ == "__main__":
