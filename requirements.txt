@@ -1,5 +1,5 @@
 # 책 빌드 + 본문 실습용. Python 3.11 기준.
-# 무거운 의존성(lightgbm, scikit-learn, osmnx)은 requirements-heavy.txt 로 분리한다.
+# 2장의 OSM 원본 내려받기에만 쓰는 osmnx 는 requirements-heavy.txt 로 분리한다.
 #
 #   pip install -r requirements.txt
 #
@@ -9,6 +9,9 @@
 jupyter-book==1.0.4.post1
 myst-nb==1.1.2
 jupytext==1.16.4
+
+# labs/ 의 실습 노트북을 여는 데 필요하다. 책 빌드에는 쓰이지 않는다.
+jupyterlab==4.3.4
 
 pandas==2.3.3
 numpy==2.1.3

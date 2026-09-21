@@ -21,7 +21,17 @@
 
 ## 여는 법
 
-저장소 뿌리에서 주피터를 띄우고 `labs/` 로 들어갑니다.
+처음이라면 교재 0.1 의 설치를 먼저 마칩니다. 저장소를 받고, `.venv` 가상환경을 만들어 활성화하고,
+`pip install -r requirements.txt` 를 실행하는 세 단계입니다.
+
+```bash
+python -m venv .venv
+source .venv/bin/activate           # 윈도우 파워셸: .venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+```
+
+가상환경을 활성화한 터미널에서 저장소 뿌리에서 주피터를 띄우고 `labs/` 로 들어갑니다.
+활성화하지 않고 띄우면 노트북이 다른 파이썬을 써서 `import smartmob` 이 실패합니다.
 
 ```bash
 jupyter lab
@@ -29,7 +39,7 @@ jupyter lab
 
 노트북은 위에서부터 순서대로 실행합니다. 첫 셀이 경로를 잡아 주므로 `labs/` 밖에서 열어도 됩니다.
 
-서버 없이도 전부 돌아갑니다. DTUMOS 에 연결하지 못하면 `data/fixtures/` 의 녹화본을 씁니다.
+서버 없이 전부 돌아갑니다. 기본값이 내장 파이썬 엔진이고, 기준 실험은 `data/fixtures/` 의 녹화본을 씁니다.
 
 ## 빈칸
 

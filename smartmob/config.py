@@ -3,11 +3,13 @@
 환경변수 세 개로 동작이 결정됩니다.
 
 ``SMARTMOB_DTUMOS_URL``
-    DTUMOS 서버 주소. 기본값 ``http://localhost:8000``.
-    공용 서버를 쓰면 팀별 포트를 넣습니다. 예: ``http://dtumos.example.ac.kr:8003``
+    DTUMOS 서버 주소. **이 값을 설정해야만 서버에 접속합니다.**
+    설정하지 않으면 :class:`~smartmob.client.Dtumos` 는 서버를 찾지 않고
+    내장 파이썬 엔진으로 돕니다. 공용 서버를 쓸 때만 팀별 주소를 넣습니다.
+    예: ``http://dtumos.example.ac.kr:8003``
 
 ``SMARTMOB_OFFLINE``
-    ``1`` 이면 서버에 접속하지 않고 ``data/fixtures/`` 의 녹화본만 씁니다.
+    ``1`` 이면 위 주소가 설정되어 있어도 접속하지 않습니다.
     책을 빌드하는 CI 는 항상 이 값을 설정합니다.
 
 ``SMARTMOB_DATA_DIR``
@@ -43,8 +45,22 @@ def _load_dotenv() -> None:
 _load_dotenv()
 
 
+DEFAULT_DTUMOS_URL = "http://localhost:8000"
+
+
 def dtumos_url() -> str:
-    return os.environ.get("SMARTMOB_DTUMOS_URL", "http://localhost:8000").rstrip("/")
+    """서버 주소. 설정하지 않았으면 기본값을 돌려줍니다."""
+    return os.environ.get("SMARTMOB_DTUMOS_URL", DEFAULT_DTUMOS_URL).rstrip("/")
+
+
+def dtumos_url_configured() -> bool:
+    """서버 주소를 사람이 직접 설정했는지 알려 줍니다.
+
+    설정하지 않았다면 서버를 쓸 의사가 없다고 보고 내장 엔진으로 돕니다.
+    이 판정이 있어야, 다른 프로그램이 우연히 8000번 포트를 쓰고 있을 때
+    책의 코드가 그 프로그램에 요청을 보내는 일이 생기지 않습니다.
+    """
+    return bool(os.environ.get("SMARTMOB_DTUMOS_URL", "").strip())
 
 
 def offline() -> bool:
