@@ -1,0 +1,307 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>실제 도로망의 탐색과 접근성 · 3장</title>
+<style>
+:root{color-scheme:light;--ink:#183447;--muted:#536b7a;--line:#d7e3e9;--blue:#286bc0;--orange:#b8690b;--green:#00786f;--purple:#7453ad}
+*{box-sizing:border-box}[hidden]{display:none!important}body{margin:0;background:#fff;color:var(--ink);font:15px/1.65 system-ui,-apple-system,"Noto Sans KR",sans-serif}main{max-width:1500px;margin:auto;border:1px solid var(--line);border-radius:16px;padding:24px}h1,h2,p{margin:0}h1{font-size:27px;letter-spacing:-.04em;line-height:1.4}h2{font-size:20px}.eyebrow{font-size:12px;font-weight:750;color:var(--green);letter-spacing:.04em;margin-bottom:6px}.intro{margin:8px 0 16px;color:var(--muted);font-size:14px}.settings,.controls{display:flex;flex-wrap:wrap;align-items:end;gap:10px}.settings{padding:14px;background:#f1f6f8;border-radius:10px}.settings label{font-size:12px;color:var(--muted);font-weight:650}select,button,input{font:inherit}select,button{border:1px solid #b8cbd7;background:#fff;color:var(--ink);border-radius:7px;min-height:40px;padding:7px 11px}select{display:block;margin-top:3px}button{cursor:pointer;font-size:13px;font-weight:650}button:hover:enabled{background:#eaf1f6}button:disabled{opacity:.4;cursor:default}button:focus-visible,select:focus-visible,input:focus-visible,canvas:focus-visible{outline:3px solid #73a0dc;outline-offset:2px}.controls{align-items:center;margin-top:16px}#play{background:var(--ink);color:white;min-width:92px}#counter{margin-left:auto;font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}.range-label{display:block;font-size:12px;color:var(--muted);margin-top:10px}input[type=range]{width:100%;min-height:28px;accent-color:var(--green);margin:0}.explain{margin:9px 0 14px;padding:11px 13px;background:#fff6e8;border-left:3px solid var(--orange);font-size:13px}.map-tools{display:flex;flex-wrap:wrap;align-items:center;gap:7px;margin-bottom:12px}.map-tools span{font-size:12px;color:var(--muted);margin-right:auto}.map-tools button{min-height:34px;padding:5px 10px}.cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.cards.access{grid-template-columns:1fr;max-width:1050px;margin:auto}.card{min-width:0;border:1px solid var(--line);border-radius:12px;overflow:hidden}.card-head{padding:14px 16px 10px}.rule{font-size:13px;color:var(--muted)}.metrics{display:flex;flex-wrap:wrap;gap:8px 22px;margin-top:7px;font-size:12px;color:var(--muted)}.metrics strong{font-size:21px;color:var(--ink);margin-left:5px;font-variant-numeric:tabular-nums}.map-wrap{position:relative;height:480px;background:#f6f8fa;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}.access .map-wrap{height:580px}canvas{display:block;width:100%;height:100%;cursor:grab;touch-action:none}canvas.dragging{cursor:grabbing}.north{position:absolute;right:12px;top:8px;color:#567184;font-size:12px;pointer-events:none}.node-info{padding:10px 14px;color:var(--muted);font-size:12px;min-height:55px}.status{padding:0 14px 12px;font-size:14px;font-weight:650;min-height:35px}.legend{display:flex;flex-wrap:wrap;gap:5px 16px;margin:13px 0;font-size:12px;color:var(--muted)}.legend span{display:inline-flex;gap:6px;align-items:center}.swatch{width:18px;border-top:3px solid}.swatch.dot{width:8px;height:8px;border:0;border-radius:50%;background:var(--orange)}.result{padding:14px;background:#eef7f4;border:1px solid #d1e7df;border-radius:10px;font-size:14px;margin:12px 0}.footer{font-size:12px;color:var(--muted);margin-top:8px}.footer a{color:var(--blue)}details{margin-top:13px;font-size:13px;color:var(--muted)}summary{cursor:pointer;font-weight:650;color:var(--ink)}details p{margin-top:6px}#data-note{font-variant-numeric:tabular-nums}.sr-only{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip:rect(0,0,0,0)}
+@media(max-width:1000px){.cards{grid-template-columns:1fr}.map-wrap{height:480px}}@media(max-width:520px){main{padding:14px;border-radius:10px}h1{font-size:23px}.map-wrap,.access .map-wrap{height:410px}.settings{gap:9px;padding:11px}select{max-width:100%;font-size:14px}#counter{width:100%;text-align:right}.map-tools span{width:100%}.metrics strong{font-size:19px}}
+.area-controls{display:flex;flex-wrap:wrap;align-items:center;gap:8px 18px;margin:0 0 14px;font-size:13px}.area-controls label{display:inline-flex;align-items:center;gap:6px;cursor:pointer}.area-controls input{width:17px;height:17px;accent-color:var(--green)}.area-controls p{width:100%;font-size:12px;color:var(--muted)}
+</style>
+</head>
+<body>
+<main>
+<p class="eyebrow">3장 · 실제 도로망 실습</p>
+<h1>도로망에서 탐색은 어떻게 퍼져 나갈까요?</h1>
+<p class="intro" id="intro"></p>
+<div class="settings">
+<label>살펴볼 내용<select id="mode"><option value="compare">다익스트라와 A* 비교</option><option value="access">등시선과 도달 범위</option></select></label>
+<label id="batch-control">한 번에 확정할 노드<select id="batch"><option value="100">100개</option><option value="1">1개</option><option value="500">500개</option></select></label>
+<label id="budget-control" hidden>통행시간 상한<select id="budget"></select></label>
+<label>재생 간격<select id="speed"><option value="200">0.2초</option><option value="600">0.6초</option><option value="1200">1.2초</option></select></label>
+</div>
+<div class="controls" aria-label="탐색 재생">
+<button type="button" id="play" aria-pressed="false">▶ 재생</button>
+<button type="button" id="previous">← 이전</button><button type="button" id="next">다음 →</button>
+<button type="button" id="reset">처음으로</button><button type="button" id="finish">끝까지</button>
+<span id="counter"></span>
+</div>
+<label for="progress" class="range-label" id="range-label">알고리즘이 확정한 노드 수</label>
+<input id="progress" type="range" min="0" max="1" value="0" step="1">
+<p class="explain" id="explain"></p>
+<div class="area-controls" id="area-controls" hidden>
+<label><input type="checkbox" id="show-isochrones" checked>등시선·등시간대 표시</label>
+<label><input type="checkbox" id="show-reached" checked>도달 노드·연결 표시</label>
+<p id="isochrone-note">선은 같은 최단 통행시간, 면은 시간 구간을 나타냅니다. 노드 사이의 공간은 보간한 값입니다.</p>
+</div>
+<div class="map-tools" role="group" aria-label="지도 범위 조절">
+<span>지도를 드래그해 이동합니다. 노드를 누르면 시간과 상태가 나옵니다.</span>
+<button type="button" id="zoom-in" aria-label="지도 확대">＋</button><button type="button" id="zoom-out" aria-label="지도 축소">−</button>
+<button type="button" id="fit">탐색 범위</button><button type="button" id="all">전체 도로망</button>
+</div>
+<div class="cards" id="cards">
+<article class="card" id="left-card">
+<div class="card-head"><h2 id="left-title">다익스트라</h2><p class="rule" id="left-rule"></p><div class="metrics"><span>확정 노드<strong id="left-count">0</strong></span><span id="left-value-label">최근 확정 g<strong id="left-value">—</strong></span></div></div>
+<div class="map-wrap"><canvas id="left-map" tabindex="0" role="img" aria-label="다익스트라 탐색 지도"></canvas><span class="north">↑ 북</span></div>
+<p class="node-info" id="left-info">노드를 누르면 출발점부터의 통행시간을 확인할 수 있습니다.</p><p class="status" id="left-status"></p>
+</article>
+<article class="card" id="right-card">
+<div class="card-head"><h2>A*</h2><p class="rule">g + h가 작은 후보부터 · h = 직선거리 ÷ 도로망 최고 속도</p><div class="metrics"><span>확정 노드<strong id="right-count">0</strong></span><span>최근 확정 g<strong id="right-value">—</strong></span></div></div>
+<div class="map-wrap"><canvas id="right-map" tabindex="0" role="img" aria-label="A* 탐색 지도"></canvas><span class="north">↑ 북</span></div>
+<p class="node-info" id="right-info">노드를 누르면 g, h, f와 확정 여부를 확인할 수 있습니다.</p><p class="status" id="right-status"></p>
+</article>
+</div>
+<div class="legend" id="legend"></div>
+<p class="result" id="result" aria-live="polite"></p>
+<details>
+<summary>지도를 읽는 방법과 계산 조건</summary>
+<p>회색 선은 실습 데이터에 들어 있는 도로의 실제 형상입니다. 탐색은 일방통행을 포함한 방향 엣지와 초 단위 비용을 사용합니다. 지도 범위를 확대하거나 옮겨도 탐색에 사용하는 도로망은 달라지지 않습니다.</p>
+<p>확정한 노드와 그 노드의 직전 연결을 색으로 표시합니다. 색칠된 선 전체가 최종 경로인 것은 아닙니다. 목적지에 도달하면 선택된 최단경로를 별도의 초록색 실선으로 강조합니다.</p>
+<p>도달 노드는 다익스트라로 확정한 결과입니다. 등시선과 등시간대는 노드의 최단시간을 삼각형 안에서 선형 보간해 그린 근사입니다. 경계 밖의 시간도 계산해 보간하며, 실제 도달 노드 수는 이 면의 모양과 별도로 셉니다.</p>
+<p id="interpolation-note"></p>
+<p id="data-note"></p>
+</details>
+<p class="footer">도로 데이터: © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a> · <a href="https://opendatacommons.org/licenses/odbl/1-0/" target="_blank" rel="noopener">ODbL</a> · 지도를 그리는 데 외부 지도 서버나 API 키가 필요하지 않습니다.</p>
+<noscript><p>재생에는 자바스크립트가 필요합니다. 본문의 결과 표와 노트북에서 같은 계산을 확인할 수 있습니다.</p></noscript>
+</main>
+<script id="search-data" type="application/json">__SEARCH_DATA__</script>
+<script>
+"use strict";
+const data = JSON.parse(document.getElementById("search-data").textContent);
+const el = id => document.getElementById(id);
+const number = n => n.toLocaleString("ko-KR");
+const duration = seconds => {const rounded=Math.round(seconds*10)/10;return `${Math.floor(rounded/60)}분 ${(rounded%60).toFixed(1)}초`;};
+const colors = {road:"#cbd5dd", settled:"#286bc0", candidate:"#b8690b", route:"#00786f", bands:["#286bc0","#008878","#8055b6"]};
+const shapePaths = data.shapes.map(points => {
+  const path = new Path2D(); points.forEach(([x,y],i) => i ? path.lineTo(x,y) : path.moveTo(x,y)); return path;
+});
+const basePath = new Path2D(); shapePaths.forEach(path => basePath.addPath(path));
+const isochronePaths = data.isochrones.bands.map(band => {
+  const fill=new Path2D(),line=new Path2D();
+  for(const ring of band.rings){ring.forEach(([x,y],i)=>i?fill.lineTo(x,y):fill.moveTo(x,y));fill.closePath();}
+  for(const part of band.lines)part.forEach(([x,y],i)=>i?line.lineTo(x,y):line.moveTo(x,y));
+  const longest=band.lines.reduce((best,p)=>p.length>best.length?p:best,[]);
+  const anchors=longest.length?[longest[Math.floor(longest.length/3)],
+    longest.reduce((a,b)=>a[0]<b[0]?a:b),longest.reduce((a,b)=>a[0]>b[0]?a:b),
+    longest.reduce((a,b)=>a[1]<b[1]?a:b),longest.reduce((a,b)=>a[1]>b[1]?a:b)]:[];
+  return {...band,fill,line,anchors,
+    color:colors.bands[band.seconds<=120?0:band.seconds<=300?1:2]};
+});
+let mode = data.target === null ? "access" : "compare", cursor = 0, timer = null;
+let view = {x:0,y:0,scale:1}, selected = {left:null,right:null};
+const panels = {};
+for (const side of ["left","right"]) {
+  const canvas = el(`${side}-map`), base = document.createElement("canvas");
+  panels[side] = {canvas,base,ctx:canvas.getContext("2d"),baseCtx:base.getContext("2d"),width:0,height:0,state:null,dirty:true};
+}
+function traceFor(side) { return data.traces[mode === "access" ? "reach" : side === "left" ? "dijkstra" : "astar"]; }
+function activeSides() { return mode === "access" ? ["left"] : ["left","right"]; }
+function limit() { return mode === "access" ? Number(el("budget").value)*60 : Math.max(data.traces.dijkstra.steps.length,data.traces.astar.steps.length); }
+function upperBound(steps, seconds) {
+  let lo=0,hi=steps.length;
+  while(lo<hi) { const mid=(lo+hi)>>1; if(steps[mid][1]<=seconds) lo=mid+1; else hi=mid; }
+  return lo;
+}
+function stateAt(trace) {
+  const count = mode === "access" ? upperBound(trace.steps,cursor) : Math.min(cursor,trace.steps.length);
+  const settled = new Set(), costs = new Map([[data.source,0]]), incoming = [];
+  for(let i=0;i<count;i++) {
+    const [node,cost,edge,updates] = trace.steps[i];
+    settled.add(node);costs.set(node,cost);if(edge>=0)incoming.push([edge,cost]);
+    for(const [v,g] of updates) costs.set(v,g);
+  }
+  const candidates = [...costs.keys()].filter(n=>!settled.has(n));
+  return {count,settled,costs,incoming,candidates,ended:count===trace.steps.length,last:count?trace.steps[count-1]:null};
+}
+function mapTransform(ctx,panel) {
+  const dpr=Math.min(devicePixelRatio||1,2);
+  ctx.setTransform(dpr*view.scale,0,0,dpr*view.scale,dpr*(panel.width/2-view.x*view.scale),dpr*(panel.height/2-view.y*view.scale));
+}
+function screenPoint(point,panel) { return [(point[0]-view.x)*view.scale+panel.width/2,(point[1]-view.y)*view.scale+panel.height/2]; }
+function drawBase(panel) {
+  const {baseCtx:ctx,width,height}=panel, dpr=Math.min(devicePixelRatio||1,2);
+  ctx.setTransform(dpr,0,0,dpr,0,0);ctx.fillStyle="#f6f8fa";ctx.fillRect(0,0,width,height);
+  mapTransform(ctx,panel);ctx.lineWidth=.75/view.scale;ctx.strokeStyle=colors.road;ctx.stroke(basePath);
+  panel.dirty=false;
+}
+function drawDots(ctx,nodes,color,radius) {
+  ctx.fillStyle=color;ctx.beginPath();
+  for(const n of nodes) { const [x,y]=data.points[n];ctx.moveTo(x+radius/view.scale,y);ctx.arc(x,y,radius/view.scale,0,Math.PI*2); }
+  ctx.fill();
+}
+function marker(ctx,panel,n,label,color) {
+  const [x,y]=screenPoint(data.points[n],panel);
+  if(x<0||x>panel.width||y<0||y>panel.height)return;
+  ctx.fillStyle=color;ctx.strokeStyle="#fff";ctx.lineWidth=2;ctx.beginPath();ctx.arc(x,y,6,0,Math.PI*2);ctx.fill();ctx.stroke();
+  ctx.font="bold 12px system-ui,sans-serif";ctx.textBaseline="middle";
+  const tw=ctx.measureText(label).width+12, tx=Math.min(Math.max(x+10,3),panel.width-tw-3),ty=Math.min(Math.max(y-24,5),panel.height-25);
+  ctx.fillStyle="rgba(255,255,255,.94)";ctx.fillRect(tx,ty,tw,22);ctx.fillStyle=color;ctx.fillText(label,tx+6,ty+11);
+}
+function draw(side) {
+  const panel=panels[side],{ctx,width,height,state}=panel,trace=traceFor(side);
+  if(!width||!state)return;
+  if(panel.dirty)drawBase(panel);
+  const dpr=Math.min(devicePixelRatio||1,2);
+  ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,panel.canvas.width,panel.canvas.height);ctx.drawImage(panel.base,0,0);
+  mapTransform(ctx,panel);ctx.lineCap="round";ctx.lineJoin="round";ctx.lineWidth=1.3/view.scale;
+  if(mode==="access") {
+    const iso=el("show-isochrones").checked;
+    if(iso)for(const band of isochronePaths.filter(b=>b.seconds<=cursor)) {
+      ctx.globalAlpha=.16;ctx.fillStyle=band.color;ctx.fill(band.fill,"evenodd");ctx.globalAlpha=1;
+    }
+    if(el("show-reached").checked)for(let band=0;band<3;band++) {
+      ctx.globalAlpha=iso ? 0.55 : 1;ctx.lineWidth=(iso ? 0.8 : 1.3)/view.scale;ctx.strokeStyle=colors.bands[band];
+      for(const [edge,cost] of state.incoming)if((cost<=120?0:cost<=300?1:2)===band)ctx.stroke(shapePaths[edge]);
+      drawDots(ctx,[...state.settled].filter(n=>(state.costs.get(n)<=120?0:state.costs.get(n)<=300?1:2)===band),colors.bands[band],iso?1:1.6);
+      ctx.globalAlpha=1;
+    }
+    if(iso)for(const band of isochronePaths.filter(b=>b.seconds<=cursor)) {
+      ctx.lineWidth=2.2/view.scale;ctx.strokeStyle=band.color;ctx.stroke(band.line);
+    }
+  } else {
+    ctx.strokeStyle=colors.settled;for(const [edge] of state.incoming)ctx.stroke(shapePaths[edge]);
+    drawDots(ctx,state.settled,colors.settled,1.6);drawDots(ctx,state.candidates,colors.candidate,2.4);
+    if(state.ended&&trace.path.length) {
+      ctx.lineWidth=5.4/view.scale;ctx.strokeStyle="#fff";for(const edge of trace.pathShapes)ctx.stroke(shapePaths[edge]);
+      ctx.lineWidth=3.2/view.scale;ctx.strokeStyle=colors.route;for(const edge of trace.pathShapes)ctx.stroke(shapePaths[edge]);
+    }
+  }
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  if(mode==="access"&&el("show-isochrones").checked)for(const band of isochronePaths.filter(b=>b.seconds<=cursor)) {
+    const markers=[data.source,data.target].filter(n=>n!==null).map(n=>screenPoint(data.points[n],panel));
+    const anchor=band.anchors.map(p=>screenPoint(p,panel)).find(([x,y])=>x>=12&&x<=width-50&&y>=12&&y<=height-30&&markers.every(([mx,my])=>Math.abs(mx-x)>100||Math.abs(my-y)>40));
+    if(!anchor)continue;
+    const [x,y]=anchor,text=`${band.seconds/60}분`;
+    ctx.font="bold 13px system-ui,sans-serif";ctx.textBaseline="middle";
+    const tw=ctx.measureText(text).width;ctx.fillStyle="rgba(255,255,255,.95)";ctx.fillRect(x-5,y-11,tw+10,22);
+    ctx.fillStyle=band.color;ctx.fillText(text,x,y);
+  }
+  if(state.last&&(mode!=="access"||el("show-reached").checked)) {const [x,y]=screenPoint(data.points[state.last[0]],panel);ctx.strokeStyle="#173b54";ctx.lineWidth=2;ctx.beginPath();ctx.arc(x,y,6,0,Math.PI*2);ctx.stroke();}
+  marker(ctx,panel,data.source,`${data.sourceName} · 출발`,"#173b54");
+  if(data.target!==null)marker(ctx,panel,data.target,`${data.targetName}${mode==="compare"?" · 도착":""}`,"#a34735");
+  if(selected[side]!==null) { const [x,y]=screenPoint(data.points[selected[side]],panel);ctx.strokeStyle="#111";ctx.lineWidth=2;ctx.beginPath();ctx.arc(x,y,8,0,Math.PI*2);ctx.stroke(); }
+  const metres = 100/view.scale, scaleMetres=metres>=1000?1000:metres>=500?500:metres>=200?200:metres>=100?100:50;
+  const length=scaleMetres*view.scale;
+  ctx.fillStyle="rgba(255,255,255,.9)";ctx.fillRect(10,height-38,length+16,30);
+  ctx.strokeStyle="#425969";ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(18,height-17);ctx.lineTo(18+length,height-17);ctx.stroke();
+  ctx.font="11px system-ui,sans-serif";ctx.fillStyle="#425969";ctx.fillText(scaleMetres>=1000?"1 km":`${scaleMetres} m`,18,height-25);
+}
+function showNode(side) {
+  const n=selected[side],state=panels[side].state;
+  if(n===null)return;
+  const g=state.costs.get(n),settled=state.settled.has(n);
+  let text=`${data.ids[n]} · `;
+  if(mode==="access")text+=settled?`최단시간 ${duration(g)} · 현재 상한 이내`:`현재 ${duration(cursor)} 이내 도달 노드에 포함되지 않습니다.`;
+  else if(g===undefined)text+="아직 경로를 발견하지 못했습니다.";
+  else {text+=`${settled?"확정":"잠정"} · g = ${g.toFixed(1)}초`;if(side==="right")text+=` · h = ${data.h[n].toFixed(1)}초 · f = ${(g+data.h[n]).toFixed(1)}초`;}
+  el(`${side}-info`).textContent=text;
+}
+function render() {
+  for(const side of activeSides()) {
+    const trace=traceFor(side),state=stateAt(trace);panels[side].state=state;
+    el(`${side}-count`).textContent=number(state.count);
+    el(`${side}-value`).textContent=mode==="access"?duration(cursor):state.last?`${state.last[1].toFixed(1)}초`:"—";
+    el(`${side}-status`).textContent=mode==="access"?`출발점에서 ${duration(cursor)} 이내 도달 노드`:
+      state.ended?trace.path.length?`최단경로 ${duration(trace.seconds)} · 탐색 종료` : "목적지까지 경로가 없습니다. 탐색 종료":
+      `미확정 후보 ${number(state.candidates.length)}개 · 목적지의 답은 아직 확정 전입니다.`;
+    draw(side);showNode(side);
+  }
+  const max=limit();el("progress").max=max;el("progress").value=cursor;
+  el("progress").setAttribute("aria-valuetext",mode==="access"?`통행시간 상한 ${duration(cursor)}`:`확정 노드 ${cursor}개 단계`);
+  el("counter").textContent=mode==="access"?`통행시간 상한 ${duration(cursor)} / ${Number(el("budget").value)}분`:`확정 ${number(cursor)} / ${number(max)}개 단계`;
+  el("previous").disabled=cursor===0;el("next").disabled=cursor===max;el("finish").disabled=cursor===max;
+  el("play").textContent=timer?"Ⅱ 일시정지":cursor===max?"↻ 다시 재생":"▶ 재생";el("play").setAttribute("aria-pressed",String(Boolean(timer)));
+  if(mode==="access") {
+    el("result").textContent=`${duration(cursor)} 이내에 ${number(panels.left.state.count)}개 노드에 도달합니다(출발점 포함). ${data.target!==null?`${data.targetName}은 ${panels.left.state.settled.has(data.target)?"이 범위에 들어옵니다.":"아직 이 범위에 들어오지 않습니다."} `:""}노드 수 자체가 접근 가능한 인구나 시설 수를 뜻하지는 않습니다.`;
+  } else {
+    const d=panels.left.state,a=panels.right.state;
+    el("result").textContent=d.ended&&a.ended?data.traces.dijkstra.path.length?
+      `두 알고리즘의 최소 통행시간은 ${data.traces.dijkstra.seconds.toFixed(1)}초로 같습니다. 확정 노드는 다익스트라 ${number(d.count)}개, A* ${number(a.count)}개입니다. 초록색은 최종 경로, 파란색은 그 경로를 찾는 동안 확정한 노드와 연결입니다.`:
+      "두 알고리즘 모두 목적지에 이르는 경로가 없음을 확인했습니다.":
+      "같은 수의 노드를 처리했을 때 두 탐색이 어느 방향으로 진행되는지 비교해 봅시다. 먼저 목적지를 확정한 쪽은 멈추고, 다른 쪽은 탐색을 계속합니다.";
+  }
+}
+function boundsOf(points) {
+  let xmin=Infinity,ymin=Infinity,xmax=-Infinity,ymax=-Infinity;
+  for(const [x,y] of points){xmin=Math.min(xmin,x);xmax=Math.max(xmax,x);ymin=Math.min(ymin,y);ymax=Math.max(ymax,y);}
+  return [xmin,ymin,xmax,ymax];
+}
+function fit(all=false) {
+  const nodes=all?data.points:mode==="access"?data.traces.reach.steps.filter(s=>s[1]<=limit()).map(s=>data.points[s[0]]):[...data.traces.dijkstra.steps,...data.traces.astar.steps].map(s=>data.points[s[0]]);
+  const points=[...nodes,data.points[data.source]];if(data.target!==null)points.push(data.points[data.target]);
+  const [xmin,ymin,xmax,ymax]=boundsOf(points);
+  const width=Math.min(...activeSides().map(s=>panels[s].width)),height=Math.min(...activeSides().map(s=>panels[s].height));
+  view={x:(xmin+xmax)/2,y:(ymin+ymax)/2,scale:Math.min((width-70)/Math.max(400,xmax-xmin),(height-80)/Math.max(400,ymax-ymin))};
+  redrawMaps();
+}
+function redrawMaps(){for(const side of activeSides()){panels[side].dirty=true;draw(side);}}
+function resizeMaps() {
+  const dpr=Math.min(devicePixelRatio||1,2);let changed=false;
+  for(const side of activeSides()) {
+    const p=panels[side],w=p.canvas.clientWidth,h=p.canvas.clientHeight;
+    if(w!==p.width||h!==p.height){p.width=w;p.height=h;p.canvas.width=p.base.width=Math.round(w*dpr);p.canvas.height=p.base.height=Math.round(h*dpr);p.dirty=true;changed=true;}
+  }
+  if(changed)fit();else redrawMaps();
+}
+function pause(){clearInterval(timer);timer=null;}
+function seek(value){pause();cursor=Math.max(0,Math.min(limit(),value));render();}
+function jump(){return mode==="access"?10:Number(el("batch").value);}
+function play(){if(cursor===limit())cursor=0;timer=setInterval(()=>{cursor=Math.min(limit(),cursor+jump());if(cursor===limit())pause();render();},Number(el("speed").value));render();}
+function resetMode(){
+  pause();mode=el("mode").value;cursor=mode==="access"?limit():0;selected={left:null,right:null};
+  el("right-card").hidden=mode==="access";el("cards").classList.toggle("access",mode==="access");
+  el("area-controls").hidden=mode!=="access";
+  el("batch-control").hidden=mode==="access";el("budget-control").hidden=mode!=="access";
+  el("left-title").textContent=mode==="access"?"다익스트라 · 등시선과 도달 범위":"다익스트라";
+  el("left-rule").textContent=mode==="access"?"목적지를 정하지 않고 시간 상한까지 노드를 확정합니다.":"출발점부터의 잠정 시간 g가 작은 후보부터 확정합니다.";
+  el("left-value-label").firstChild.textContent=mode==="access"?"통행시간 상한":"최근 확정 g";
+  el("intro").textContent=`${data.sourceName}${mode==="compare"?` → ${data.targetName}`:"에서 출발"} · 노드 ${number(data.points.length)}개, 방향 엣지 ${number(data.nEdges)}개의 실습 데이터입니다.`;
+  el("range-label").textContent=mode==="access"?"출발점부터의 통행시간 상한 · 초":"알고리즘이 확정한 노드 수";
+  el("explain").textContent=mode==="access"?"재생하면 통행시간 상한을 10초씩 늘립니다. 목적지 한 곳에서 멈추지 않고, 이 시간 안에 도달하는 노드를 계속 확정합니다. 재생 시간과 도로 위의 통행시간은 다릅니다.":"두 지도는 같은 도로망·비용·축척을 사용합니다. 같은 수의 노드를 확정하며 비교하고, 재생 속도로 알고리즘의 실제 실행시간을 비교하지는 않습니다. 주황색 점은 발견했지만 아직 확정하지 않은 후보입니다.";
+  el("legend").innerHTML=mode==="access"?'<span><i class="swatch" style="color:#286bc0"></i>0~2분</span><span><i class="swatch" style="color:#008878"></i>2~5분</span><span><i class="swatch" style="color:#8055b6"></i>5분 초과</span><span>진한 선: 등시선 · 옅은 면: 보간한 등시간대</span>':'<span><i class="swatch" style="color:#cbd5dd"></i>도로망</span><span><i class="swatch" style="color:#286bc0"></i>확정 노드와 직전 연결</span><span><i class="swatch dot"></i>미확정 후보</span><span><i class="swatch" style="color:#00786f"></i>최종 경로</span>';
+  for(const side of ["left","right"])el(`${side}-info`).textContent="노드를 누르면 시간과 상태를 확인할 수 있습니다.";
+  render();resizeMaps();fit();
+}
+const requestedMode=new URLSearchParams(location.search).get("mode");
+if(requestedMode==="access")mode="access";
+el("mode").value=mode;if(data.target===null)el("mode").querySelector('[value="compare"]').disabled=true;
+for(const minutes of [...new Set([2,5,data.minutes].filter(m=>m<=data.minutes))].sort((a,b)=>a-b)) {
+  const option=document.createElement("option");option.value=minutes;option.textContent=`${minutes}분`;el("budget").append(option);
+}
+el("budget").value=data.target===null?data.minutes:Math.min(data.minutes,5);
+if(new URLSearchParams(location.search).get("minutes")===String(data.minutes))el("budget").value=data.minutes;
+el("interpolation-note").textContent=`가장 긴 변이 ${data.isochrones.maxGapM}m를 넘는 삼각형과 도달 불가능한 꼭짓점이 있는 삼각형은 보간에서 제외합니다. 강·담장·입체교차 같은 장벽을 별도로 반영한 면은 아닙니다. 빈 곳은 보간에서 제외된 곳일 수 있으며, 데이터 범위에서 선이 끊길 수도 있습니다.`;
+if(data.isochrones.reason){el("show-isochrones").checked=false;el("show-isochrones").disabled=true;el("isochrone-note").textContent=data.isochrones.reason;}
+else el("isochrone-note").textContent=`선은 ${data.isochrones.bands.map(b=>`${b.seconds/60}분`).join("·")} 시점에 표시합니다. 옅은 면은 그 사이의 시간대입니다. 도로망 노드 사이의 공간을 보간한 근사이며, 면 안의 모든 장소에 도달할 수 있다는 뜻은 아닙니다.`;
+el("data-note").textContent=`데이터 범위 안의 노드 ${number(data.points.length)}개와 방향 엣지 ${number(data.nEdges)}개를 사용합니다. 속도 컬럼: ${data.speedColumn}. 모든 비용은 한 번의 탐색 동안 고정합니다. 기록은 제공된 파이썬 알고리즘으로 계산했으며 학생의 미완성 함수와는 별도로 실행됩니다.`;
+el("play").addEventListener("click",()=>{if(timer){pause();render();}else play();});
+el("previous").addEventListener("click",()=>seek(cursor-jump()));el("next").addEventListener("click",()=>seek(cursor+jump()));
+el("reset").addEventListener("click",()=>seek(0));el("finish").addEventListener("click",()=>seek(limit()));
+el("progress").addEventListener("input",event=>seek(Number(event.target.value)));
+el("mode").addEventListener("change",resetMode);el("budget").addEventListener("change",()=>{seek(limit());fit();});
+el("show-isochrones").addEventListener("change",()=>draw("left"));el("show-reached").addEventListener("change",()=>draw("left"));
+el("speed").addEventListener("change",()=>{if(timer){pause();play();}});
+el("zoom-in").addEventListener("click",()=>{view.scale*=1.4;redrawMaps();});el("zoom-out").addEventListener("click",()=>{view.scale/=1.4;redrawMaps();});
+el("fit").addEventListener("click",()=>fit());el("all").addEventListener("click",()=>fit(true));
+for(const side of ["left","right"]) {
+  const panel=panels[side];let drag=null;
+  panel.canvas.addEventListener("pointerdown",event=>{drag={x:event.clientX,y:event.clientY,vx:view.x,vy:view.y,moved:false};panel.canvas.setPointerCapture(event.pointerId);panel.canvas.classList.add("dragging");});
+  panel.canvas.addEventListener("pointermove",event=>{if(!drag)return;const dx=event.clientX-drag.x,dy=event.clientY-drag.y;if(Math.hypot(dx,dy)>3)drag.moved=true;if(drag.moved){view.x=drag.vx-dx/view.scale;view.y=drag.vy-dy/view.scale;redrawMaps();}});
+  panel.canvas.addEventListener("pointerup",event=>{
+    if(drag&&!drag.moved){const rect=panel.canvas.getBoundingClientRect(),x=event.clientX-rect.left,y=event.clientY-rect.top;let best=null,distance=100;
+      data.points.forEach((point,n)=>{const [px,py]=screenPoint(point,panel),d=(px-x)**2+(py-y)**2;if(d<distance){best=n;distance=d;}});
+      if(best!==null){selected[side]=best;showNode(side);draw(side);}}
+    drag=null;panel.canvas.classList.remove("dragging");
+  });
+  panel.canvas.addEventListener("pointercancel",()=>{drag=null;panel.canvas.classList.remove("dragging");});
+  panel.canvas.addEventListener("keydown",event=>{const moves={ArrowLeft:[-60,0],ArrowRight:[60,0],ArrowUp:[0,-60],ArrowDown:[0,60]};if(moves[event.key]){event.preventDefault();view.x+=moves[event.key][0]/view.scale;view.y+=moves[event.key][1]/view.scale;redrawMaps();}else if(event.key==="+"||event.key==="-"){event.preventDefault();view.scale*=event.key==="+"?1.4:1/1.4;redrawMaps();}});
+}
+document.addEventListener("visibilitychange",()=>{if(document.hidden){pause();render();}});
+resetMode();
+new ResizeObserver(resizeMaps).observe(el("cards"));
+new ResizeObserver(()=>{try{if(window.frameElement)window.frameElement.style.height=`${Math.ceil(document.querySelector("main").getBoundingClientRect().height)+2}px`;}catch{}}).observe(document.querySelector("main"));
+</script>
+</body>
+</html>

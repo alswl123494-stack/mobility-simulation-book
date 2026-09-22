@@ -1,0 +1,612 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>다익스트라와 A* — 3장</title>
+  <style>
+    :root { color-scheme: light; --ink:#172b3a; --muted:#526576; --line:#dbe3e9; --blue:#245db3; --teal:#08766d; --amber:#ad4b08; }
+    * { box-sizing:border-box; }
+    [hidden] { display:none !important; }
+    body { margin:0; background:#fff; color:var(--ink); font:15px/1.6 system-ui,-apple-system,"Noto Sans KR",sans-serif; }
+    main { max-width:1020px; margin:0 auto; padding:22px; border:1px solid var(--line); border-radius:16px; }
+    main.comparing { max-width:1500px; }
+    h1,h2,p { margin:0; }
+    h1 { font-size:25px; letter-spacing:-.04em; line-height:1.35; }
+    h2 { font-size:14px; margin-bottom:9px; }
+    .eyebrow { color:var(--teal); font-size:12px; font-weight:750; letter-spacing:.04em; margin-bottom:5px; }
+    .intro { color:var(--muted); margin:7px 0 18px; font-size:14px; }
+    .settings { display:flex; flex-wrap:wrap; gap:12px; align-items:end; }
+    label { display:block; font-size:12px; font-weight:650; color:var(--muted); }
+    select,button,input { font:inherit; }
+    select { display:block; margin-top:4px; padding:8px 28px 8px 10px; min-height:42px; border:1px solid #bdcbd6; border-radius:8px; background:#fff; color:var(--ink); max-width:100%; }
+    .scenario { flex:1 1 250px; }
+    .scenario select { width:100%; }
+    .controls { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-top:14px; }
+    button { min-height:42px; padding:8px 13px; border:1px solid #bdcbd6; border-radius:8px; background:white; color:var(--ink); cursor:pointer; font-size:14px; font-weight:650; }
+    button:hover:enabled { background:#eef3f7; }
+    button:disabled { opacity:.4; cursor:default; }
+    #play { background:var(--ink); border-color:var(--ink); color:white; min-width:94px; }
+    #play:hover { background:#2b465a; }
+    :focus-visible { outline:3px solid #8ab2f0; outline-offset:3px; }
+    .step-count { margin-left:auto; font-size:13px; font-variant-numeric:tabular-nums; color:var(--muted); }
+    .scrubber { margin:9px 0 12px; }
+    input[type="range"] { width:100%; accent-color:var(--teal); cursor:pointer; min-height:26px; margin:0; }
+    .plot { background:#f6f9fb; border:1px solid var(--line); border-radius:12px; overflow:hidden; }
+    .plot-heading { display:flex; justify-content:space-between; gap:10px; padding:11px 14px 0; font-size:12px; color:var(--muted); }
+    .plot-heading strong { color:var(--ink); }
+    .graph-scroll { overflow-x:auto; }
+    .pan-hint { display:none; padding:5px 14px 0; font-size:12px; color:var(--muted); }
+    svg { display:block; width:100%; height:auto; }
+    .edge { fill:none; stroke:#b2c0cc; stroke-width:2.4; }
+    .edge.route { stroke:var(--blue); stroke-width:3.5; stroke-dasharray:7 5; }
+    .edge.final { stroke:var(--teal); stroke-width:4; stroke-dasharray:none; }
+    .edge.replaced { stroke:#8c6a61; stroke-dasharray:3 5; }
+    .edge.active { stroke:var(--amber); stroke-width:4; stroke-dasharray:9 5; animation:flow 1s linear infinite; }
+    @keyframes flow { to { stroke-dashoffset:-28; } }
+    .edge-label { font-size:20px; font-weight:600; fill:#526576; paint-order:stroke; stroke:#f6f9fb; stroke-width:9px; stroke-linejoin:round; }
+    .edge-label.active { fill:var(--amber); }
+    .node circle { fill:#fff; stroke:#a7b6c4; stroke-width:2; }
+    .node.tentative circle { fill:#e9f0ff; stroke:var(--blue); }
+    .node.settled circle { fill:#08766d; stroke:#08766d; }
+    .node.current circle { stroke:var(--amber); stroke-width:4; }
+    .node-letter { font-size:23px; font-weight:750; fill:#617585; }
+    .tentative .node-letter { fill:var(--blue); }
+    .settled .node-letter { fill:#fff; }
+    .node-time { font-size:19px; font-weight:700; fill:var(--ink); }
+    .node-status { font-size:12px; fill:var(--muted); }
+    .legend { display:flex; flex-wrap:wrap; gap:5px 15px; padding:0 14px 12px; font-size:12px; color:var(--muted); }
+    .legend span { display:inline-flex; align-items:center; gap:5px; }
+    .dot { width:10px; height:10px; display:inline-block; border:1px solid #a7b6c4; border-radius:50%; background:#fff; }
+    .dot.blue { background:#e9f0ff; border-color:var(--blue); }
+    .dot.teal { background:var(--teal); border-color:var(--teal); }
+    .line-key { width:19px; border-top:3px solid var(--amber); }
+    .line-key.tree { border-top:3px dashed var(--blue); }
+    .explanation { margin:14px 0; padding:14px 16px; background:#fff8ed; border-left:4px solid var(--amber); border-radius:3px 9px 9px 3px; min-height:119px; }
+    .explanation h2 { font-size:17px; margin-bottom:5px; }
+    #equation { font-variant-numeric:tabular-nums; font-size:16px; font-weight:750; color:#874010; margin-bottom:3px; overflow-wrap:anywhere; }
+    #explanation { font-size:14px; }
+    .records { display:grid; grid-template-columns:1.15fr 1fr; gap:14px; }
+    .panel { border:1px solid var(--line); border-radius:10px; padding:13px; min-width:0; }
+    table { width:100%; border-collapse:collapse; font-size:13px; font-variant-numeric:tabular-nums; text-align:left; }
+    th { color:var(--muted); font-weight:600; font-size:12px; padding:4px 6px 7px; }
+    td { padding:6px; border-top:1px solid #e7edf2; }
+    tr.current { background:#fff2db; }
+    tr.changed { background:#e9f0ff; }
+    .state { font-size:12px; }
+    .state.settled { color:var(--teal); font-weight:650; }
+    .state.tentative { color:var(--blue); }
+    .right { display:grid; gap:12px; align-content:start; }
+    .candidates { display:flex; flex-wrap:wrap; gap:7px; }
+    .candidate { padding:4px 8px; border:1px solid #bdcbea; color:var(--blue); border-radius:6px; background:#f3f7ff; font-size:13px; }
+    .candidate:first-child { border:2px solid var(--blue); padding:3px 7px; font-weight:700; }
+    .hint { font-size:12px; color:var(--muted); margin-top:8px; }
+    #route { font-size:16px; font-weight:700; line-height:1.5; }
+    #route-time { color:var(--blue); font-size:15px; margin-top:5px; }
+    #route-time.confirmed { color:var(--teal); }
+    .footer { margin-top:13px; font-size:12px; color:var(--muted); }
+    #scenario-note { margin:9px 0 0; font-size:13px; color:var(--muted); }
+    .concepts { margin:14px 0; padding:14px; border:1px solid #bdcbea; border-radius:10px; background:#f3f7ff; }
+    .definitions { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:10px; }
+    .definitions strong { display:block; color:var(--blue); font-size:19px; }
+    .definitions span { font-size:13px; }
+    .concepts p, .concepts details { font-size:13px; }
+    .concepts summary { margin-top:9px; cursor:pointer; font-weight:650; }
+    #heuristic-values { margin:9px 0; font-variant-numeric:tabular-nums; }
+    .record-scroll { overflow-x:auto; }
+    .comparison-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
+    .comparison-card { border:1px solid var(--line); border-radius:12px; padding:14px; min-width:0; }
+    .comparison-card h2 { font-size:20px; margin-bottom:2px; }
+    .comparison-card h3 { font-size:13px; margin:12px 0 6px; }
+    .comparison-rule { color:var(--muted); font-size:13px; margin-bottom:10px; }
+    .metrics { display:flex; flex-wrap:wrap; gap:12px; margin:10px 0; font-size:12px; color:var(--muted); }
+    .metrics strong { font-size:20px; color:var(--ink); margin-left:4px; }
+    .comparison-plot { border:1px solid var(--line); border-radius:10px; background:#f6f9fb; }
+    .comparison-message { min-height:76px; margin-top:10px; padding:10px; border-radius:8px; background:#fff8ed; font-size:13px; }
+    .comparison-path { padding-top:9px; font-size:14px; font-weight:650; }
+    .comparison-order { margin-top:8px; font-size:12px; color:var(--muted); overflow-wrap:anywhere; }
+    #compare-result { margin-top:14px; padding:14px; border-radius:9px; background:#eef7f4; font-size:14px; }
+    .comparison-note { margin-bottom:12px; font-size:13px; color:var(--muted); }
+    @media (max-width:1100px) { .comparison-grid { grid-template-columns:1fr; } }
+    @media (max-width:600px) {
+      .complex svg { min-width:700px; }
+      .complex .pan-hint { display:block; }
+    }
+    .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+    noscript p { padding:20px; }
+    @media (max-width:520px) {
+      main { padding:14px; border-radius:10px; }
+      h1 { font-size:22px; }
+      .records { grid-template-columns:1fr; }
+      .right { grid-template-columns:1fr; }
+      .controls { gap:6px; }
+      button { padding:8px 10px; }
+      .step-count { width:100%; text-align:right; }
+      .explanation { min-height:146px; padding:12px; }
+      .plot-heading { font-size:11px; }
+    }
+    @media (prefers-reduced-motion:reduce) { .edge.active { animation:none; } }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <p class="eyebrow">3장 · 최단경로</p>
+    <h1>다익스트라와 A*</h1>
+    <p class="intro" id="intro">A에서 출발합니다. 다음에 확정할 노드와 바뀔 시간을 먼저 예상해 봅시다.</p>
+  </header>
+  <div class="settings">
+    <label class="scenario">살펴볼 예제
+      <select id="scenario">
+        <option value="branching">여러 갈림길에서 비교하기 · A → H</option>
+        <option value="congested">F → G가 느려지면? · A → H</option>
+        <option value="basic">본문의 작은 예제 · A → C</option>
+        <option value="detour">B → D를 100초로 변경 · A → C</option>
+        <option value="unreachable">도달할 수 없는 목적지 · A → E</option>
+      </select>
+    </label>
+    <label>탐색 방식
+      <select id="mode">
+        <option value="dijkstra">다익스트라</option>
+        <option value="astar">A*</option>
+        <option value="compare">나란히 비교</option>
+      </select>
+    </label>
+    <label id="heuristic-control" hidden>휴리스틱
+      <select id="heuristic">
+        <option value="estimate">예시 추정치</option>
+        <option value="zero">모든 노드에서 h = 0</option>
+      </select>
+    </label>
+    <label>재생 간격
+      <select id="speed">
+        <option value="2500">2.5초</option>
+        <option value="5000">5초</option>
+        <option value="1000">1초</option>
+      </select>
+    </label>
+  </div>
+  <p id="scenario-note"></p>
+  <section id="heuristic-explanation" class="concepts" hidden aria-label="A*의 후보 선택 기준">
+    <div class="definitions">
+      <div><strong>g</strong><span>지금까지 발견한 경로 중 출발점부터의 최소 시간</span></div>
+      <div><strong>h</strong><span>목적지까지 남은 시간의 추정치</span></div>
+      <div><strong>f = g + h</strong><span>다음 후보를 고르는 기준</span></div>
+    </div>
+    <p>A*는 f가 가장 작은 후보를 고릅니다. 경로를 갱신할 때 더하는 값은 g + 구간 통행시간입니다. h는 실제로 이동한 시간에 포함하지 않습니다.</p>
+    <details>
+      <summary>휴리스틱의 값과 조건</summary>
+      <p id="heuristic-description"></p>
+      <p id="heuristic-values"></p>
+      <p id="heuristic-check"></p>
+      <p>이 조건에서는 한 번 확정한 노드를 다시 처리하지 않아도 됩니다. 실제 도로망에서는 직선거리를 최고 속도로 나눈 시간처럼, 계산하기 쉬운 하한을 사용합니다.</p>
+    </details>
+  </section>
+  <div class="controls" role="group" aria-label="단계 이동">
+    <button id="play" type="button" aria-pressed="false">▶ 재생</button>
+    <button id="previous" type="button">← 이전</button>
+    <button id="next" type="button">다음 →</button>
+    <button id="reset" type="button">처음으로</button>
+    <span id="step-count" class="step-count"></span>
+  </div>
+  <div class="scrubber">
+    <label for="step" class="sr-only">탐색 단계</label>
+    <input id="step" type="range" min="0" max="9" value="0" step="1">
+  </div>
+  <div id="walkthrough">
+  <section class="plot" aria-label="도로망과 탐색 상태">
+    <div class="plot-heading"><strong id="endpoints">출발 A → 도착 H</strong><span>화살표의 숫자: 구간 통행시간(초)</span></div>
+    <p class="pan-hint">그림을 좌우로 밀어 전체 도로망을 살펴볼 수 있습니다.</p>
+    <div id="graph-scroll" class="graph-scroll" tabindex="0" role="region" aria-label="도로망 그림. 넓은 그림은 좌우로 스크롤할 수 있습니다.">
+    <svg id="graph" viewBox="0 0 840 410" role="img" aria-labelledby="graph-title graph-description">
+      <title id="graph-title">탐색 중인 도로망</title>
+      <desc id="graph-description"></desc>
+      <defs>
+        <marker id="arrow-default" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 10 5 0 10Z" fill="#b2c0cc"/></marker>
+        <marker id="arrow-route" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 10 5 0 10Z" fill="#245db3"/></marker>
+        <marker id="arrow-final" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 10 5 0 10Z" fill="#08766d"/></marker>
+        <marker id="arrow-active" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 10 5 0 10Z" fill="#ad4b08"/></marker>
+        <marker id="arrow-replaced" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 10 5 0 10Z" fill="#8c6a61"/></marker>
+      </defs>
+      <g id="edges"></g><g id="edge-labels" text-anchor="middle"></g><g id="nodes" text-anchor="middle"></g>
+    </svg>
+    </div>
+    <div class="legend" aria-label="범례">
+      <span><i class="dot"></i>미발견</span><span><i class="dot blue"></i>잠정</span><span><i class="dot teal"></i>확정</span><span><i class="line-key"></i>지금 조사하는 엣지</span><span><i class="line-key tree"></i>직전 노드 연결</span>
+    </div>
+  </section>
+  <section class="explanation" aria-live="polite" aria-atomic="true">
+    <h2 id="event-title"></h2><p id="equation"></p><p id="explanation"></p>
+  </section>
+  <section class="records" aria-label="탐색 기록">
+    <div class="panel">
+      <h2>노드별 기록</h2>
+      <div class="record-scroll"><table>
+        <caption class="sr-only" id="records-caption">A에서 각 노드까지 발견한 최소 시간, 직전 노드, 확정 여부</caption>
+        <thead id="record-head"><tr><th scope="col">노드</th><th scope="col">시간(초)</th><th scope="col">직전</th><th scope="col">상태</th></tr></thead>
+        <tbody id="records"></tbody>
+      </table></div>
+      <p class="hint" id="record-note"></p>
+    </div>
+    <div class="right">
+      <div class="panel">
+        <h2 id="candidate-heading">미확정 후보 · 시간이 작은 순서</h2>
+        <div id="candidates" class="candidates"></div>
+        <p class="hint">각 노드의 최신 잠정 시간만 표시합니다. 아직 조사할 이웃이 있다면 먼저 갱신합니다.</p>
+      </div>
+      <div class="panel">
+        <h2 id="route-heading">C까지 현재 알아낸 경로</h2>
+        <p id="route"></p><p id="route-time"></p>
+        <p class="hint" id="route-hint"></p>
+      </div>
+    </div>
+  </section>
+  </div>
+  <section id="comparison" hidden aria-label="다익스트라와 A*의 탐색 비교">
+    <p class="comparison-note">비교에서는 한 단계마다 각 알고리즘이 노드 하나를 확정하고 이웃을 조사합니다. 먼저 끝난 쪽은 결과를 유지합니다. 재생 간격은 설명을 위한 것으로 실행시간을 뜻하지 않습니다.</p>
+    <div class="comparison-grid" id="comparison-grid"></div>
+    <p id="compare-result" aria-live="polite"></p>
+  </section>
+  <p class="footer" id="footer">노드에 붙은 시간은 A에서부터 더한 값입니다. 「다음」으로 계산 하나씩 확인하거나, 막대를 움직여 앞뒤 단계를 비교해 봅시다.</p>
+  <noscript><p>이 그림의 재생에는 자바스크립트가 필요합니다. 본문의 단계별 표에서도 같은 계산을 확인할 수 있습니다.</p></noscript>
+</main>
+<script>
+"use strict";
+const originalEdges = [
+  {u:"A", v:"B", w:60}, {u:"A", v:"C", w:200},
+  {u:"B", v:"C", w:90}, {u:"B", v:"D", w:30},
+  {u:"D", v:"C", w:30}, {u:"E", v:"F", w:30}
+];
+const branchingEdges = [
+  {u:"A",v:"B",w:50}, {u:"A",v:"C",w:20}, {u:"A",v:"D",w:110},
+  {u:"C",v:"B",w:10}, {u:"C",v:"D",w:25}, {u:"C",v:"E",w:80}, {u:"C",v:"F",w:70},
+  {u:"B",v:"E",w:40}, {u:"B",v:"D",w:60},
+  {u:"D",v:"F",w:20}, {u:"D",v:"C",w:15},
+  {u:"E",v:"F",w:10}, {u:"E",v:"G",w:50}, {u:"E",v:"H",w:100},
+  {u:"F",v:"E",w:15}, {u:"F",v:"G",w:25}, {u:"F",v:"H",w:80},
+  {u:"G",v:"H",w:20}
+];
+const el = id => document.getElementById(id);
+const format = value => Number.isFinite(value) ? String(value) : "∞";
+const edgeKey = (u, v) => `${u}-${v}`;
+const priority = (frame, n) => frame.dist[n] + (frame.algorithm === "astar" ? frame.h[n] : 0);
+function candidatesFor(frame) {
+  return Object.keys(frame.dist).filter(n => !frame.done.includes(n) && Number.isFinite(frame.dist[n]))
+    .sort((a,b) => priority(frame,a)-priority(frame,b) || frame.dist[a]-frame.dist[b] || a.localeCompare(b));
+}
+function candidateText(frame, n) {
+  return frame.algorithm === "astar" ? `${n}: ${frame.dist[n]} + ${frame.h[n]} = ${priority(frame,n)}` : `${n} · ${frame.dist[n]}초`;
+}
+
+// 확정과 완화를 실행하며 각 단계의 기록을 복사해 둡니다.
+function buildTrace(nodes, edges, target, algorithm = "dijkstra", h = Object.fromEntries(nodes.map(n => [n,0]))) {
+  const dist = Object.fromEntries(nodes.map(n => [n, Infinity]));
+  const prev = {};
+  const done = new Set();
+  const frames = [];
+  let examined = 0;
+  dist.A = 0;
+  function snapshot(event) {
+    frames.push({dist:{...dist}, prev:{...prev}, done:[...done], algorithm, h, examined, current:null, edge:null, replaced:null, ...event});
+  }
+  snapshot({kind:"start", title:"시작점 A의 시간을 0으로 둡니다", equation:"A = 0초 · 나머지 노드 = ∞", message:"A만 후보에 있습니다. ∞는 아직 경로를 발견하지 못했다는 표시입니다. A도 아직 확정 전입니다."});
+  while (true) {
+    const state = {dist, done:[...done], algorithm, h};
+    const candidates = candidatesFor(state);
+    if (!candidates.length) {
+      snapshot({kind:"no-path", title:`${target}에 도달하는 경로가 없습니다`, equation:`${target} = ∞ · 미확정 후보 없음`, message:`출발점에서 도달할 수 있는 노드의 엣지를 모두 조사했습니다. ${target}로 이어지는 경로를 발견하지 못한 채 후보가 소진되었습니다.`});
+      return frames;
+    }
+    const u = candidates[0];
+    const comparison = candidates.map(n => candidateText(state,n)).join(" / ");
+    const selection = algorithm === "astar" ? `f가 가장 작은 ${u}: g ${dist[u]} + h ${h[u]} = ${dist[u]+h[u]}초` : `잠정 시간이 가장 작은 ${u}: ${dist[u]}초`;
+    done.add(u);
+    if (u === target) {
+      snapshot({kind:"finish", current:u, selection, title:`${u}의 ${dist[u]}초를 확정하고 종료합니다`, equation:selection, message:algorithm === "astar" ? `목적지의 h는 0이므로 f = g = ${dist[u]}초입니다. 이 예제의 일관적인 휴리스틱에서는 목적지를 최소 f 후보로 꺼냈을 때 최소 통행시간을 확정할 수 있습니다.` : "목적지가 가장 작은 미확정 후보가 되었습니다. 이제 더 짧은 경로가 나올 수 없으므로 통행시간과 경로를 반환합니다."});
+      return frames;
+    }
+    const outgoing = edges.filter(e => e.u === u);
+    snapshot({kind:"settle", current:u, selection, title:`${u}의 ${dist[u]}초를 확정합니다`, equation:`${algorithm === "astar" ? "f = g + h" : "잠정 시간"} 순서: ${comparison}`, message:outgoing.length ? `${selection}. ${algorithm === "astar" ? "일관적인 휴리스틱을 사용하므로 g를 확정합니다. " : ""}다음 단계에서는 ${u}에서 나가는 엣지를 조사합니다.` : `${u}에서 나가는 엣지가 없습니다. 남아 있는 미확정 후보가 있는지 확인합니다.`});
+    for (const edge of outgoing) {
+      const {v,w} = edge;
+      examined += 1;
+      if (done.has(v)) {
+        snapshot({kind:"skip", current:u, edge:edgeKey(u,v), title:`${u} → ${v}: 이미 확정한 노드입니다`, equation:`${dist[u]} + ${w} = ${dist[u]+w} ≥ 확정값 ${dist[v]}`, message:`${v}의 ${dist[v]}초는 이미 최소 통행시간으로 확정했습니다. 기록을 유지하고 다음 엣지를 조사합니다.`});
+        continue;
+      }
+      const before = dist[v];
+      const candidate = dist[u] + w;
+      const updated = candidate < before;
+      const replaced = updated && prev[v] ? edgeKey(prev[v],v) : null;
+      if (updated) { dist[v] = candidate; prev[v] = u; }
+      let message = updated ? `${v}의 직전 노드를 ${u}로 기록합니다. ${v}는 아직 확정되지 않았습니다.` : `기존 ${format(before)}초가 더 짧거나 같으므로 시간과 직전 노드를 유지합니다.`;
+      if (updated && algorithm === "astar") message += ` h(${v}) = ${h[v]}는 그대로이며, f(${v})는 ${candidate+h[v]}초가 됩니다.`;
+      if (updated && v === target) message = `목적지 ${target}로 가는 경로를 찾았습니다. 아직 잠정 값이므로 탐색을 끝내지 않습니다. 이웃 조사를 마친 뒤 ${algorithm === "astar" ? "f가" : "시간이"} 가장 작은 미확정 후보를 고릅니다.`;
+      snapshot({kind:"relax", current:u, edge:edgeKey(u,v), replaced, changed:updated ? v : null,
+        title:updated ? `${u} → ${v}: ${v}의 기록을 ${format(before)}에서 ${candidate}초로 줄입니다` : `${u} → ${v}: 기존 기록을 유지합니다`,
+        equation:`${dist[u]} + ${w} = ${candidate} ${updated ? "<" : "≥"} ${format(before)}`, message});
+    }
+  }
+}
+
+// 비교 화면은 노드 하나의 확정과 그 이웃 조사를 한 단계로 묶습니다.
+function comparisonRounds(trace) {
+  const rounds = [trace[0]];
+  for (let i = 1; i < trace.length; i++) {
+    const selection = trace[i];
+    if (selection.kind === "finish") { rounds.push(selection); continue; }
+    if (selection.kind !== "settle") continue;
+    let end = i;
+    while (end+1 < trace.length && !["settle","finish"].includes(trace[end+1].kind)) end += 1;
+    const last = trace[end];
+    rounds.push({...last, edge:null, replaced:null, changed:null, current:selection.current,
+      selection:selection.selection, title:last.kind === "no-path" ? last.title : `${selection.current} 확정 · 이웃 조사 완료`});
+    i = end;
+  }
+  return rounds;
+}
+
+function routeTo(frame, target) {
+  if (!Number.isFinite(frame.dist[target])) return [];
+  const path = [target];
+  while (path[0] !== "A") path.unshift(frame.prev[path[0]]);
+  return path;
+}
+
+const ns = "http://www.w3.org/2000/svg";
+function svgElement(tag, attrs, text) {
+  const element = document.createElementNS(ns, tag);
+  for (const [name,value] of Object.entries(attrs)) element.setAttribute(name,value);
+  if (text !== undefined) element.textContent = text;
+  return element;
+}
+const narrow = matchMedia("(max-width:520px)");
+function geometry() {
+  if (isComplex) return {
+    width:840, height:610,
+    points:{A:[65,300], B:[270,90], C:[270,300], D:[270,510], E:[540,90], F:[540,510], G:[760,90], H:[760,510]},
+    labelOffsets:{B:[-49,-31],E:[-49,-31],G:[-49,-31]},
+    paths:{
+      "A-B":"M84 279 L249 111", "A-C":"M93 300 L241 300", "A-D":"M84 321 L249 489",
+      "C-B":"M270 272 L270 119", "C-D":"M294 317 C350 380 345 430 285 483",
+      "C-E":"M293 282 L517 108", "C-F":"M293 318 L517 492",
+      "B-E":"M298 90 L511 90", "B-D":"M286 113 C390 200 390 400 286 486",
+      "D-F":"M298 510 L511 510", "D-C":"M246 495 C197 432 197 383 246 320",
+      "E-F":"M534 117 C486 250 486 350 534 482", "E-G":"M568 90 L731 90", "E-H":"M554 113 L746 485",
+      "F-E":"M552 485 C610 360 610 240 552 117", "F-G":"M554 487 L746 115", "F-H":"M568 510 L731 510",
+      "G-H":"M760 118 L760 481"
+    },
+    labels:{
+      "A-B":[146,180], "A-C":[163,279], "A-D":[141,444],
+      "C-B":[247,208], "C-D":[335,435], "C-E":[414,182], "C-F":[421,451],
+      "B-E":[405,70], "B-D":[385,306], "D-F":[405,491], "D-C":[190,400],
+      "E-F":[480,298], "E-G":[650,70], "E-H":[696,400],
+      "F-E":[606,319], "F-G":[685,241], "F-H":[650,491], "G-H":[787,305]
+    }
+  };
+  if (narrow.matches) return {
+    width:420, height:420,
+    points:{A:[40,180], B:[135,70], C:[380,180], D:[285,70], E:[135,335], F:[285,335]},
+    paths:{"A-B":"M57 160 L116 92", "A-C":"M55 202 C130 276 290 276 363 202", "B-C":"M153 91 Q247 173 352 180", "B-D":"M163 70 L256 70", "D-C":"M304 91 L361 158", "E-F":"M163 335 L256 335"},
+    labels:{"A-B":[69,117], "A-C":[210,251], "B-C":[261,147], "B-D":[210,52], "D-C":[351,117], "E-F":[210,318]}
+  };
+  return {
+    width:840, height:410,
+    points:{A:[85,175], B:[300,65], C:[755,175], D:[540,65], E:[300,320], F:[540,320]},
+    paths:{"A-B":"M108 160 L274 79", "A-C":"M101 197 C237 279 603 279 737 197", "B-C":"M323 83 Q515 202 726 176", "B-D":"M328 65 L511 65", "D-C":"M565 78 L728 161", "E-F":"M328 320 L511 320"},
+    labels:{"A-B":[184,102], "A-C":[420,237], "B-C":[465,155], "B-D":[420,47], "D-C":[658,102], "E-F":[420,302]}
+  };
+}
+
+let nodeIds, edges, target, frames, traces, selectedH, mode, isComplex, index = 0, timer = null;
+function renderGraph(frame, path, prefix = "") {
+  const graphEl = id => el(prefix+id);
+  const layout = geometry();
+  graphEl("graph").setAttribute("viewBox", `0 0 ${layout.width} ${layout.height}`);
+  graphEl("edges").replaceChildren(); graphEl("edge-labels").replaceChildren(); graphEl("nodes").replaceChildren();
+  const routeEdges = new Set(path.slice(1).map((v,i) => edgeKey(path[i],v)));
+  const predecessorEdges = new Set(Object.entries(frame.prev).map(([v,u]) => edgeKey(u,v)));
+  for (const edge of edges) {
+    const key = edgeKey(edge.u,edge.v);
+    let state = frame.kind === "finish" && routeEdges.has(key) ? "final" : predecessorEdges.has(key) ? "route" : "default";
+    if (frame.replaced === key) state = "replaced";
+    if (frame.edge === key) state = "active";
+    graphEl("edges").append(svgElement("path", {d:layout.paths[key], class:`edge ${state}`, "marker-end":`url(#${prefix}arrow-${state})`, "data-edge":key}));
+    const [x,y] = layout.labels[key];
+    graphEl("edge-labels").append(svgElement("text", {x,y,class:`edge-label ${state}`}, edge.w));
+  }
+  for (const n of nodeIds) {
+    const settled = frame.done.includes(n);
+    const state = settled ? "settled" : Number.isFinite(frame.dist[n]) ? "tentative" : "unknown";
+    const [x,y] = layout.points[n];
+    const [timeY,statusY] = layout.labelOffsets?.[n] || [48,65];
+    const group = svgElement("g", {class:`node ${state} ${frame.current === n ? "current" : ""}`, transform:`translate(${x},${y})`, "data-node":n});
+    group.append(svgElement("circle", {r:26}));
+    group.append(svgElement("text", {class:"node-letter", y:8}, n));
+    group.append(svgElement("text", {class:"node-time", y:timeY}, `${format(frame.dist[n])}${Number.isFinite(frame.dist[n]) ? "초" : ""}`));
+    group.append(svgElement("text", {class:"node-status", y:statusY}, settled ? "확정" : state === "tentative" ? "잠정" : "미발견"));
+    graphEl("nodes").append(group);
+  }
+  graphEl("graph-description").textContent = `${frame.title}. ${nodeIds.map(n => `${n}: ${format(frame.dist[n])}초, ${frame.done.includes(n) ? "확정" : "미확정"}`).join(". ")}`;
+}
+
+function renderCandidates(frame, container) {
+  const candidates = candidatesFor(frame);
+  container.replaceChildren();
+  for (const n of candidates) {
+    const chip = document.createElement("span");
+    chip.className = "candidate"; chip.textContent = candidateText(frame,n);
+    container.append(chip);
+  }
+  if (!candidates.length) container.textContent = "남은 후보 없음";
+}
+
+function renderWalkthrough(frame) {
+  const path = routeTo(frame,target);
+  renderGraph(frame,path);
+  el("event-title").textContent = frame.title;
+  el("equation").textContent = frame.equation;
+  el("explanation").textContent = frame.message;
+  el("records").replaceChildren();
+  for (const n of nodeIds) {
+    const settled = frame.done.includes(n);
+    const state = settled ? "settled" : Number.isFinite(frame.dist[n]) ? "tentative" : "unknown";
+    const row = document.createElement("tr");
+    row.dataset.node = n;
+    row.className = frame.changed === n ? "changed" : frame.current === n ? "current" : "";
+    const values = [n,format(frame.dist[n])];
+    if (frame.algorithm === "astar") values.push(frame.h[n],format(priority(frame,n)));
+    values.push(frame.prev[n] || "—",settled ? "확정" : state === "tentative" ? "잠정" : "미발견");
+    values.forEach((value,i) => {
+      const cell = document.createElement(i === 0 ? "th" : "td");
+      if (i === 0) cell.scope = "row";
+      if (i === values.length-1) cell.className = `state ${state}`;
+      cell.textContent = value;
+      row.append(cell);
+    });
+    el("records").append(row);
+  }
+  renderCandidates(frame,el("candidates"));
+  el("endpoints").textContent = `출발 A → 도착 ${target}`;
+  el("route-heading").textContent = `${target}까지 현재 알아낸 경로`;
+  el("route").textContent = path.length ? path.join(" → ") : frame.kind === "no-path" ? "경로 없음" : "아직 발견하지 못했습니다";
+  el("route-time").textContent = path.length ? `${frame.dist[target]}초 · ${frame.kind === "finish" ? "최소 통행시간 확정" : "아직 잠정 시간"}` : "";
+  el("route-time").className = frame.kind === "finish" ? "confirmed" : "";
+  el("route-hint").textContent = path.length ? frame.kind === "finish" ? "초록색 실선이 최종 경로입니다. 다른 노드로 향하는 파란 점선은 탐색 중 기록한 연결입니다." : "직전 노드 기록을 따라 복원한 경로입니다. 파란 점선은 각 노드의 현재 직전 노드 연결을 보여 줍니다." : "목적지를 발견하기 전에도 각 노드의 기록을 갱신합니다. 파란 점선이 지금까지 알아낸 직전 노드 연결입니다.";
+  if (frame.kind === "no-path") el("route-hint").textContent = `도달할 수 있는 노드의 엣지를 모두 조사했습니다. A에서 ${target}로 가는 경로가 없습니다.`;
+}
+
+function createComparisonCards() {
+  for (const algorithm of ["dijkstra","astar"]) {
+    const prefix = `compare-${algorithm}-`;
+    const card = document.createElement("article");
+    card.className = "comparison-card";
+    card.innerHTML = `<h2>${algorithm === "astar" ? "A*" : "다익스트라"}</h2>
+      <p class="comparison-rule">${algorithm === "astar" ? "f = g + h가 작은 후보부터" : "g가 작은 후보부터"}</p>
+      <div class="metrics"><span>확정 노드 <strong id="${prefix}count"></strong></span><span>조사한 엣지 <strong id="${prefix}examined"></strong></span></div>
+      <div class="comparison-plot"><p class="pan-hint">그림을 좌우로 밀어 살펴볼 수 있습니다.</p><div class="graph-scroll" id="${prefix}scroll" tabindex="0" role="region" aria-label="${algorithm === "astar" ? "A*" : "다익스트라"} 도로망 그림"></div></div>
+      <p class="comparison-message" id="${prefix}message"></p>
+      <h3>미확정 후보 · ${algorithm === "astar" ? "g + h = f (초)" : "g (초)"}</h3>
+      <div class="candidates" id="${prefix}candidates"></div>
+      <p class="comparison-path" id="${prefix}path"></p>
+      <p class="comparison-order" id="${prefix}order"></p>`;
+    const graph = el("graph").cloneNode(true);
+    graph.id = prefix+"graph";
+    graph.querySelectorAll("[id]").forEach(element => { element.id = prefix+element.id; });
+    graph.setAttribute("aria-labelledby",`${prefix}graph-title ${prefix}graph-description`);
+    card.querySelector(".graph-scroll").append(graph);
+    el("comparison-grid").append(card);
+  }
+}
+
+function renderComparison(pair) {
+  for (const algorithm of ["dijkstra","astar"]) {
+    const frame = pair[algorithm];
+    const prefix = `compare-${algorithm}-`;
+    const path = routeTo(frame,target);
+    const ended = ["finish","no-path"].includes(frame.kind);
+    const next = candidatesFor(frame)[0];
+    renderGraph(frame,path,prefix);
+    el(prefix+"count").textContent = frame.done.length;
+    el(prefix+"examined").textContent = frame.examined;
+    el(prefix+"message").textContent = frame.kind === "start" ? "A만 후보에 있습니다. 다음 단계에서 A를 확정하고 출발점의 이웃을 조사합니다." : frame.kind === "finish" ? `${frame.selection}. 목적지를 확정했으므로 탐색을 종료합니다. 남은 후보는 처리하지 않습니다.` : frame.kind === "no-path" ? `후보를 모두 조사했습니다. A에서 ${target}로 가는 경로가 없습니다.` : `${frame.selection}. 이웃 조사를 마쳤습니다. ${next ? `다음 선택은 ${candidateText(frame,next)}입니다.` : "남은 후보가 없습니다."}`;
+    renderCandidates(frame,el(prefix+"candidates"));
+    el(prefix+"path").textContent = path.length ? `${path.join(" → ")} · ${frame.dist[target]}초${ended ? " (최소 통행시간)" : " (잠정)"}` : ended ? "경로 없음" : `${target}로 가는 경로는 아직 발견하지 못했습니다.`;
+    el(prefix+"order").textContent = `확정 순서: ${frame.done.join(" → ") || "아직 없음"}${ended ? " · 탐색 종료" : ""}`;
+  }
+  const d = pair.dijkstra, a = pair.astar;
+  const bothEnded = [d,a].every(frame => ["finish","no-path"].includes(frame.kind));
+  el("compare-result").textContent = bothEnded ? d.kind === "no-path" ? "두 알고리즘 모두 경로가 없음을 확인했습니다." : `최소 통행시간은 둘 다 ${d.dist[target]}초입니다. 확정 노드는 다익스트라 ${d.done.length}개, A* ${a.done.length}개입니다. ${d.done.length === a.done.length ? "이 설정에서는 A*의 확정 노드 수가 줄지 않았습니다." : "A*가 목적지에 이르는 후보를 우선 조사해 더 적은 노드를 확정했습니다."}` : "노드의 숫자는 출발점부터의 g입니다. 초록색 노드는 확정, 파란색 노드는 잠정 상태입니다. 후보 목록의 첫 항목이 다음에 처리할 노드입니다.";
+}
+
+function render() {
+  const frame = frames[index];
+  el("step-count").textContent = `단계 ${index} / ${frames.length-1}`;
+  el("step").max = frames.length-1;
+  el("step").value = index;
+  el("step").setAttribute("aria-valuetext", `단계 ${index}. ${mode === "compare" ? `다익스트라 ${frame.dijkstra.title}. A* ${frame.astar.title}` : frame.title}`);
+  el("previous").disabled = index === 0;
+  el("next").disabled = index === frames.length-1;
+  el("play").textContent = timer ? "Ⅱ 일시정지" : index === frames.length-1 ? "↻ 다시 재생" : "▶ 재생";
+  el("play").setAttribute("aria-pressed", String(Boolean(timer)));
+  if (mode === "compare") renderComparison(frame); else renderWalkthrough(frame);
+}
+
+function pause() { clearInterval(timer); timer = null; }
+function seek(value) { pause(); index = Math.max(0,Math.min(frames.length-1,value)); render(); }
+function startPlaying() {
+  if (index === frames.length-1) index = 0;
+  timer = setInterval(() => {
+    index += 1;
+    if (index === frames.length-1) pause();
+    render();
+  }, Number(el("speed").value));
+  render();
+}
+function resetScenario() {
+  pause(); index = 0;
+  const scenario = el("scenario").value;
+  mode = el("mode").value;
+  isComplex = ["branching","congested"].includes(scenario);
+  nodeIds = isComplex ? ["A","B","C","D","E","F","G","H"] : ["A","B","C","D","E","F"];
+  edges = (isComplex ? branchingEdges : originalEdges).map(edge => ({...edge,
+    w:scenario === "detour" && edge.u === "B" && edge.v === "D" ? 100 : scenario === "congested" && edge.u === "F" && edge.v === "G" ? 90 : edge.w
+  }));
+  target = isComplex ? "H" : scenario === "unreachable" ? "E" : "C";
+  document.querySelector("main").classList.toggle("complex",isComplex);
+  document.querySelector("main").classList.toggle("comparing",mode === "compare");
+  el("walkthrough").hidden = mode === "compare";
+  el("comparison").hidden = mode !== "compare";
+  el("heuristic-control").hidden = mode === "dijkstra";
+  el("heuristic-explanation").hidden = mode === "dijkstra";
+  el("intro").textContent = mode === "compare" ? "같은 도로망에서 다음 후보가 어떻게 달라지는지 비교해 봅시다." : mode === "astar" ? "지금까지 온 시간과 목적지까지 남은 시간의 추정치를 더해, 다음 후보를 고릅니다." : "A에서 출발합니다. 다음에 확정할 노드와 바뀔 시간을 먼저 예상해 봅시다.";
+  el("scenario-note").textContent = isComplex ? `A → H · 노드 8개, 방향 엣지 18개입니다.${scenario === "congested" ? " F → G의 비용을 25초에서 90초로 바꿨습니다." : " 여러 갈림길에서 시간을 갱신하거나 기존 기록을 유지합니다."} 선이 교차해도 노드가 없으면 연결되지 않습니다.` : `A → ${target} · 본문에서 손으로 계산한 작은 도로망입니다.${scenario === "detour" ? " B → D를 100초로 바꿨습니다." : scenario === "unreachable" ? " E는 A에서 갈 수 없는 구간에 있습니다." : " C를 발견한 시점과 확정한 시점을 비교해 봅시다."}`;
+  const zero = el("heuristic").value === "zero" || scenario === "unreachable";
+  selectedH = zero ? Object.fromEntries(nodeIds.map(n => [n,0])) : isComplex ? {A:100,B:90,C:80,D:60,E:50,F:40,G:20,H:0} : {A:100,B:60,C:0,D:30,E:0,F:0};
+  const consistent = selectedH[target] === 0 && edges.every(e => selectedH[e.u] <= e.w+selectedH[e.v]);
+  if (!consistent) throw new Error("휴리스틱의 일관성 조건을 확인해 주세요.");
+  el("heuristic-description").textContent = zero ? scenario === "unreachable" ? "이 예제는 경로가 없는 경우에 집중하도록 모든 h를 0으로 둡니다. 두 알고리즘의 탐색 순서는 같습니다." : "모든 h를 0으로 두면 f = g입니다. 동점 처리도 같으므로 다익스트라와 같은 순서로 탐색합니다." : "이 예제에서는 원리를 살펴보기 위해 다음 추정치를 미리 정했습니다. 그림의 선 길이에서 계산한 값은 아닙니다. 탐색 중에는 h를 바꾸지 않습니다.";
+  el("heuristic-values").textContent = nodeIds.map(n => `${n}: ${selectedH[n]}초`).join(" · ");
+  el("heuristic-check").textContent = `모든 엣지 ${edges.length}개에서 h(u) ≤ 구간 시간 + h(v)를 만족하고, h(${target}) = 0입니다. 이를 휴리스틱의 일관성이라고 합니다.`;
+  el("record-head").innerHTML = `<tr>${(mode === "astar" ? ["노드","g(초)","h(초)","f(초)","직전","상태"] : ["노드","시간(초)","직전","상태"]).map(label => `<th scope="col">${label}</th>`).join("")}</tr>`;
+  el("records-caption").textContent = mode === "astar" ? "노드별 g, h, f와 직전 노드 및 확정 여부" : "노드별 잠정 시간과 직전 노드 및 확정 여부";
+  el("record-note").textContent = mode === "astar" ? "확정하는 값은 g입니다. f는 후보를 고르는 기준이며 실제 통행시간과 다릅니다. 종료해도 미확정 노드의 g는 잠정 값으로 남습니다." : "확정 전의 시간은 더 줄어들 수 있습니다.";
+  el("candidate-heading").textContent = mode === "astar" ? "미확정 후보 · g + h = f (초) 순서" : "미확정 후보 · 시간이 작은 순서";
+  el("footer").textContent = mode === "compare" ? "조사한 엣지 수에는 이미 확정한 이웃으로 향하는 엣지도 포함합니다. 목적지를 확정하면 그 이웃은 조사하지 않습니다. 같은 우선순위에서는 g, 노드 이름 순서로 고릅니다." : `노드에 붙은 시간은 A에서부터 더한 ${mode === "astar" ? "g" : "값"}입니다. 「다음」으로 계산 하나씩 확인하거나, 막대를 움직여 앞뒤 단계를 비교해 봅시다.`;
+  traces = {dijkstra:buildTrace(nodeIds,edges,target), astar:buildTrace(nodeIds,edges,target,"astar",selectedH)};
+  if (mode === "compare") {
+    const d = comparisonRounds(traces.dijkstra), a = comparisonRounds(traces.astar);
+    frames = Array.from({length:Math.max(d.length,a.length)}, (_,i) => ({dijkstra:d[Math.min(i,d.length-1)],astar:a[Math.min(i,a.length-1)]}));
+  } else frames = traces[mode];
+  document.querySelectorAll(".graph-scroll").forEach(element => { element.scrollLeft = 0; });
+  render();
+}
+el("play").addEventListener("click", () => { if (timer) { pause(); render(); } else startPlaying(); });
+el("previous").addEventListener("click", () => seek(index-1));
+el("next").addEventListener("click", () => seek(index+1));
+el("reset").addEventListener("click", () => seek(0));
+el("step").addEventListener("input", event => seek(Number(event.target.value)));
+el("scenario").addEventListener("change", resetScenario);
+el("mode").addEventListener("change", resetScenario);
+el("heuristic").addEventListener("change", resetScenario);
+el("speed").addEventListener("change", () => { if (timer) { pause(); startPlaying(); } });
+narrow.addEventListener("change", render);
+document.addEventListener("visibilitychange", () => { if (document.hidden) { pause(); render(); } });
+document.addEventListener("keydown", event => {
+  if (["INPUT","SELECT"].includes(event.target.tagName) || event.target.closest(".graph-scroll")) return;
+  if (event.key === "ArrowRight") { event.preventDefault(); seek(index+1); }
+  if (event.key === "ArrowLeft") { event.preventDefault(); seek(index-1); }
+});
+createComparisonCards();
+const requestedMode = new URLSearchParams(location.search).get("mode");
+if (["dijkstra","astar","compare"].includes(requestedMode)) el("mode").value = requestedMode;
+resetScenario();
+// 책과 같은 출처에서 열었을 때 프레임 높이를 내용에 맞춥니다.
+new ResizeObserver(() => {
+  try {
+    if (window.frameElement) window.frameElement.style.height = `${Math.ceil(document.querySelector("main").getBoundingClientRect().height)+2}px`;
+  } catch { /* 로컬 파일로 열면 기본 프레임 높이와 스크롤을 사용합니다. */ }
+}).observe(document.querySelector("main"));
+</script>
+</body>
+</html>

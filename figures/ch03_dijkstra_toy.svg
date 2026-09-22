@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="840" height="370" viewBox="0 0 840 370" role="img" aria-labelledby="title desc">
+  <title id="title">다익스트라 알고리즘을 따라 계산할 작은 방향 그래프</title>
+  <desc id="desc">A에서 B로 60초, A에서 C로 200초, B에서 C로 90초, B에서 D로 30초, D에서 C로 30초입니다. 따로 떨어진 E에서 F로 30초인 엣지가 있습니다.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#475569"/>
+    </marker>
+  </defs>
+  <rect width="840" height="370" rx="12" fill="#f8fafc"/>
+  <g fill="none" stroke="#475569" stroke-width="2.5" marker-end="url(#arrow)">
+    <path d="M 108 160 L 279 77"/>
+    <path d="M 328 65 L 512 65"/>
+    <path d="M 563 77 L 734 160"/>
+    <path d="M 321 82 Q 515 202 733 176"/>
+    <path d="M 99 194 C 235 282 605 282 741 194"/>
+    <path d="M 328 320 L 512 320"/>
+  </g>
+  <g font-family="Arial, sans-serif" font-size="23" fill="#334155" text-anchor="middle" paint-order="stroke" stroke="#f8fafc" stroke-width="9" stroke-linejoin="round">
+    <text x="184" y="102">60</text>
+    <text x="420" y="49">30</text>
+    <text x="658" y="102">30</text>
+    <text x="510" y="141">90</text>
+    <text x="420" y="237">200</text>
+    <text x="420" y="307">30</text>
+  </g>
+  <g fill="#fff" stroke="#334155" stroke-width="2.5">
+    <circle cx="85" cy="175" r="27"/>
+    <circle cx="300" cy="65" r="27"/>
+    <circle cx="540" cy="65" r="27"/>
+    <circle cx="755" cy="175" r="27"/>
+    <circle cx="300" cy="320" r="27"/>
+    <circle cx="540" cy="320" r="27"/>
+  </g>
+  <g font-family="Arial, sans-serif" font-size="25" font-weight="600" fill="#0f172a" text-anchor="middle" dominant-baseline="central">
+    <text x="85" y="175">A</text>
+    <text x="300" y="65">B</text>
+    <text x="540" y="65">D</text>
+    <text x="755" y="175">C</text>
+    <text x="300" y="320">E</text>
+    <text x="540" y="320">F</text>
+  </g>
+</svg>

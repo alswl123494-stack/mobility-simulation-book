@@ -39,11 +39,16 @@
 | adjacency list | 인접 리스트 | 인접 리스트(adjacency list) | 애드제이션시 |
 | shortest path | 최단경로 | 최단경로(shortest path) | 최적경로 |
 | tentative travel time | 잠정 시간 | 현재까지 발견한 경로 중 가장 짧은 통행시간 | 확정된 최소 통행시간과 혼용 |
+| relaxation | 완화 | 완화(relaxation) | 확정과 혼용 |
+| min-heap | 최소 힙 | 최소 힙(min-heap) | 정렬된 목록과 혼용 |
 | admissibility | 허용 가능성 | 허용 가능성(admissibility) | 일관성과 혼용 |
 | consistency | 일관성 | 일관성(consistency) | 허용 가능성과 혼용 |
 | routing | 라우팅 | 경로 탐색(routing) | — |
 | snapping | 스냅 | 가장 가까운 노드에 붙이기(snapping) | 스냅핑 |
 | free-flow speed | 자유류 속도 | 자유류 속도(free-flow speed) | 프리플로우 |
+| time-dependent shortest path | 시간의존 최단경로 | 시간의존 최단경로(time-dependent shortest path) | 시간대별 고정 비용 탐색과 혼용 |
+| CH | 축약 계층 | 축약 계층(CH, Contraction Hierarchies) | MLD와 혼용 |
+| MLD | 다단계 다익스트라 | 다단계 다익스트라(MLD, Multi-Level Dijkstra) | 축약 계층과 혼용 |
 | RAPTOR | RAPTOR | RAPTOR(Round-bAsed Public Transit Optimized Router) | 랩터 |
 | itinerary | 경로안 | 경로안(itinerary) | 이터너리 |
 | footpath / transfer | 도보 환승 | 도보 환승(footpath) | 풋패스 |
@@ -77,4 +82,7 @@
 
 ## 소프트웨어 이름 (영문 그대로, 표기 고정)
 
-`OSMnx` · `NetworkX` · `GeoPandas` · `pandas` · `NumPy` · `SciPy` · `scikit-learn` · `LightGBM` · `pydeck` · `deck.gl` · `folium` · `Mapbox` · `OpenStreetMap`(약어는 OSM) · `SUMO` · `VISSIM` · `AIMSUN` · `MATSim` · `Docker` · `FastAPI` · `Jupyter Book` · `DTUMOS`
+`OSMnx` · `NetworkX` · `GeoPandas` · `pandas` · `NumPy` · `SciPy` ·
+`scikit-learn` · `LightGBM` · `pydeck` · `deck.gl` · `folium` · `Mapbox` ·
+`OpenStreetMap`(약어는 OSM) · `SUMO` · `VISSIM` · `AIMSUN` · `MATSim` ·
+`Docker` · `FastAPI` · `Jupyter Book` · `DTUMOS`

@@ -17,6 +17,7 @@ parts:
       - file: ko/ch02_road_network
       - file: ko/ch03_dijkstra
       - file: ko/ch04_speeds_engine
+      - file: assignment/assignment_1
 
   - caption: 대중교통
     numbered: false
