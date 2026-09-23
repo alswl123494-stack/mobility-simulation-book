@@ -1,0 +1,135 @@
+<style>
+.builder-layout{grid-template-columns:minmax(0,1.55fr) minmax(300px,1fr)}
+.builder-map-shell{position:relative;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#f1f4ef}
+#builder-map{height:540px;width:100%;font:inherit}#builder-map canvas{height:auto;width:auto;max-width:none}
+.builder-map-shell .map-tools{z-index:2;left:auto;right:10px}.builder-map-shell .map-tools button{background:white}
+#builder-map .maplibregl-ctrl-attrib{font-size:10px;line-height:16px}#builder-map .maplibregl-ctrl-attrib a{color:#285872}
+.builder-map-status{font-size:12px;color:var(--muted);margin:8px 0}.builder-stop-marker{border:2px solid white;border-radius:16px;background:var(--teal);color:white;box-shadow:0 1px 5px #19334455;min-width:26px;height:26px;font-size:12px;line-height:22px;padding:0 5px;text-align:center;cursor:pointer}.builder-stop-marker.custom{background:var(--orange)}.builder-stop-marker:hover{background:var(--ink);color:white}.builder-snap-marker{width:14px;height:14px;border:2px solid white;border-radius:50%;background:var(--orange);box-shadow:0 0 0 7px #b85b2040;pointer-events:none}.builder-road-key{display:inline-block;width:17px;border-top:2px solid #7d8e9b;vertical-align:middle;margin-right:5px}.builder-route-key{display:inline-block;width:17px;border-top:2px dashed var(--blue);vertical-align:middle;margin-right:5px}
+@media(max-width:950px){.builder-layout{grid-template-columns:1fr}#builder-map{height:460px}}@media(max-width:450px){#builder-map{height:400px}}
+</style>
+<script>
+// 클릭 지점에서 가장 가까운 도로 선분을 찾습니다. 거리와 허용 반경의 단위는 m입니다.
+// 200m 격자로 후보만 좁힌 뒤 선분 내부에 수선을 내려 실제 형상에 붙입니다.
+class BuilderRoadIndex{
+ constructor(roads){
+  this.roads=roads;this.cells=new Map();this.size=200;
+  const origin=roads[0]?.[3]?.[0]||[127.2148,37.5393];this.origin=origin;
+  this.east=111195.08*Math.cos(origin[1]*Math.PI/180);this.north=111195.08;
+  roads.forEach((road,roadIndex)=>{if(!road[2])return;const coords=road[3].map(p=>this.project(...p));
+   for(let i=1;i<coords.length;i++){
+    const a=coords[i-1],b=coords[i],segment={a,b,roadIndex};
+    for(let x=Math.floor(Math.min(a[0],b[0])/this.size);x<=Math.floor(Math.max(a[0],b[0])/this.size);x++)
+     for(let y=Math.floor(Math.min(a[1],b[1])/this.size);y<=Math.floor(Math.max(a[1],b[1])/this.size);y++){
+      const key=x+','+y;if(!this.cells.has(key))this.cells.set(key,[]);this.cells.get(key).push(segment);
+     }
+   }
+  });
+ }
+ project(lon,lat){return[(lon-this.origin[0])*this.east,(lat-this.origin[1])*this.north];}
+ nearest(lon,lat,radius=40){
+  const p=this.project(lon,lat),seen=new Set();let best=null,bestSquared=radius*radius;
+  for(let x=Math.floor((p[0]-radius)/this.size);x<=Math.floor((p[0]+radius)/this.size);x++)
+   for(let y=Math.floor((p[1]-radius)/this.size);y<=Math.floor((p[1]+radius)/this.size);y++)
+    for(const segment of this.cells.get(x+','+y)||[]){
+     if(seen.has(segment))continue;seen.add(segment);
+     const {a,b,roadIndex}=segment,dx=b[0]-a[0],dy=b[1]-a[1],length=dx*dx+dy*dy;
+     const t=length?Math.max(0,Math.min(1,((p[0]-a[0])*dx+(p[1]-a[1])*dy)/length)):0;
+     const q=[a[0]+t*dx,a[1]+t*dy],distance=(p[0]-q[0])**2+(p[1]-q[1])**2;
+     if(distance<=bestSquared){bestSquared=distance;best={lon:this.origin[0]+q[0]/this.east,lat:this.origin[1]+q[1]/this.north,distance:Math.sqrt(distance),roadIndex,name:this.roads[roadIndex][0]};}
+    }
+  return best;
+ }
+}
+const builderFeature=(geometry,properties={})=>({type:'Feature',properties,geometry});
+const builderCollection=features=>({type:'FeatureCollection',features});
+class BuilderRoadMap{
+ constructor(catalog,roads,boundary,onpick,onpoint){
+  this.catalog=catalog;this.roads=roads;this.boundary=boundary;this.onpick=onpick;this.onpoint=onpoint;
+  this.snapIndex=new BuilderRoadIndex(roads);this.stops=[];this.markers=[];this.map=null;this.preview=null;
+ }
+ sourceData(){
+  return {
+   'edu-roads':builderCollection(this.roads.map(r=>builderFeature({type:'LineString',coordinates:r[3]},{name:r[0],snap:r[2]}))),
+   'edu-boundary':builderCollection(this.boundary.map(r=>builderFeature({type:'LineString',coordinates:r}))),
+   'edu-stops':builderCollection(this.catalog.map((s,i)=>builderFeature({type:'Point',coordinates:[s[2],s[3]]},{index:i}))),
+   'edu-route':builderCollection(this.stops.length>1?[builderFeature({type:'LineString',coordinates:this.stops.map(s=>[s.lon,s.lat])})]:[])
+  };
+ }
+ layers(){return[
+  {id:'edu-boundary',type:'line',source:'edu-boundary',paint:{'line-color':'#799285','line-opacity':.65,'line-width':1,'line-dasharray':[4,4]}},
+  {id:'edu-roads',type:'line',source:'edu-roads',paint:{'line-color':['case',['get','snap'],'#899ba6','#b6bec1'],'line-width':['interpolate',['linear'],['zoom'],11,.6,15,1.4,18,3],'line-opacity':.7}},
+  {id:'edu-route',type:'line',source:'edu-route',paint:{'line-color':'#2469bc','line-width':2.5,'line-dasharray':[3,2]}},
+  {id:'edu-stops',type:'circle',source:'edu-stops',paint:{'circle-color':'#446b83','circle-radius':['interpolate',['linear'],['zoom'],11,2,14,4,17,6],'circle-stroke-color':'#ffffff','circle-stroke-width':1.3}}
+ ];}
+ style(){return{version:8,sources:Object.fromEntries(Object.entries(this.sourceData()).map(([id,data])=>[id,{type:'geojson',data}])),layers:[{id:'background',type:'background',paint:{'background-color':'#f1f4ef'}},...this.layers()]};}
+ ensure(){
+  if(this.map)return;
+  try{this.map=new maplibregl.Map({container:'builder-map',style:this.style(),center:[127.205,37.55],zoom:14,minZoom:8,maxZoom:19,attributionControl:false,dragRotate:false,pitchWithRotate:false,touchPitch:false});}
+  catch{ $('builder-map-status').textContent='이 브라우저에서 지도를 열지 못했습니다. 검색으로 기존 정류장을 추가할 수 있습니다.';return; }
+  this.map.touchZoomRotate.disableRotation();this.map.doubleClickZoom.disable();
+  this.map.addControl(new maplibregl.AttributionControl({compact:false,customAttribution:'© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors'}));
+  this.map.addControl(new maplibregl.ScaleControl({maxWidth:100,unit:'metric'}),'bottom-left');
+  this.map.on('error',()=>{$('builder-map-status').textContent='배경지도를 불러오지 못한 부분이 있습니다. 실습 도로와 정류장은 계속 사용할 수 있습니다.';});
+  this.map.on('click',e=>{
+   const stop=this.nearStop(e.point);
+   if(stop){this.onpick(stop);return;}
+   if($('builder-map-mode').value==='new')this.onpoint(e.lngLat.lat,e.lngLat.lng);
+   else $('builder-map-message').textContent='기존 정류장을 클릭하거나 추가 방식을 ‘도로 위에 정류장 신설’로 변경합니다.';
+  });
+  this.map.on('mousemove',e=>{
+   const stop=this.nearStop(e.point);this.map.getCanvas().style.cursor=stop?'pointer':$('builder-map-mode').value==='new'?'crosshair':'';
+   if(stop){$('builder-map-message').textContent=stop[1]+' · 클릭하면 방문 순서의 마지막에 추가합니다.';this.clearPreview();return;}
+   if($('builder-map-mode').value!=='new'){this.clearPreview();return;}
+   const snap=this.snapIndex.nearest(e.lngLat.lng,e.lngLat.lat);
+   if(!snap){this.clearPreview();return;}
+   if(!this.preview){const el=document.createElement('div');el.className='builder-snap-marker';this.preview=new maplibregl.Marker({element:el}).setLngLat([snap.lon,snap.lat]).addTo(this.map);}
+   this.preview.setLngLat([snap.lon,snap.lat]);
+   $('builder-map-message').textContent=`정류장 신설 위치: ${snap.name||'도로'} · 선택한 지점에서 약 ${Math.round(snap.distance)} m 이동한 도로 위에 배치합니다.`;
+  });
+  this.map.getCanvas().addEventListener('mouseleave',()=>this.clearPreview());
+  new ResizeObserver(()=>{if(!$('builder').hidden)this.map.resize();}).observe($('builder-map'));
+  this.map.once('load',()=>{this.render(this.stops);this.loadBasemap();});
+ }
+ async loadBasemap(){
+  $('builder-map-status').textContent='배경지도를 불러오는 중입니다. 도로와 정류장은 먼저 사용할 수 있습니다.';
+  try{
+   const response=await fetch('https://tiles.openfreemap.org/styles/positron',{signal:AbortSignal.timeout(12000)});
+   if(!response.ok)throw Error('basemap');const style=await response.json();
+   // 인터넷 배경지도 위에 HTML에 담긴 실습 자료를 유지합니다.
+   Object.assign(style.sources,Object.fromEntries(Object.entries(this.sourceData()).map(([id,data])=>[id,{type:'geojson',data}])));
+   style.layers.push(...this.layers());
+   this.map.setStyle(style,{diff:false});
+   this.map.once('style.load',()=>this.render(this.stops));
+   $('builder-map-status').textContent='배경지도: OpenFreeMap · 실습 도로: 2장의 OSM 자동차 도로망';
+  }catch{$('builder-map-status').textContent='인터넷 배경지도를 불러오지 못했습니다. 저장된 도로·정류장으로 실습할 수 있습니다.';}
+ }
+ nearStop(point){
+  if(!this.map.getLayer('edu-stops'))return null;
+  const features=this.map.queryRenderedFeatures([[point.x-10,point.y-10],[point.x+10,point.y+10]],{layers:['edu-stops']});
+  let nearest=null,distance=13;
+  for(const feature of features){const s=this.catalog[feature.properties.index],p=this.map.project([s[2],s[3]]),d=Math.hypot(point.x-p.x,point.y-p.y);if(d<distance){distance=d;nearest=s;}}
+  return nearest;
+ }
+ clearPreview(){this.preview?.remove();this.preview=null;}
+ render(stops){
+  this.stops=stops;if(!this.map)return;
+  const source=this.map.getSource('edu-route');if(source)source.setData(this.sourceData()['edu-route']);
+  this.markers.forEach(m=>m.remove());this.markers=[];
+  const visits=new Map();stops.forEach((s,i)=>{if(!visits.has(s.id))visits.set(s.id,{stop:s,order:[]});visits.get(s.id).order.push(i+1);});
+  for(const {stop:s,order}of visits.values()){
+   const el=document.createElement('button');el.className='builder-stop-marker'+(s.custom?' custom':'');el.textContent=order.join(',');el.type='button';el.title=s.name;el.setAttribute('aria-label',`${order.join(',')}번째 ${s.name}. 클릭하면 방문 순서의 마지막에 다시 추가합니다.`);
+   el.onclick=e=>{e.stopPropagation();this.onpick([s.id,s.name,s.lon,s.lat]);};
+   this.markers.push(new maplibregl.Marker({element:el}).setLngLat([s.lon,s.lat]).addTo(this.map));
+  }
+ }
+ fit(){
+  this.ensure();if(!this.map)return;this.map.resize();
+  let coords=this.stops.map(s=>[s.lon,s.lat]);
+  if(!coords.length)coords=this.boundary.flat();
+  if(!coords.length)coords=this.catalog.map(s=>[s[2],s[3]]);
+  if(!coords.length)return;const bounds=new maplibregl.LngLatBounds();coords.forEach(p=>bounds.extend(p));
+  this.map.fitBounds(bounds,{padding:55,maxZoom:16,duration:0});this.render(this.stops);
+ }
+ focus(lon,lat){this.ensure();this.map?.jumpTo({center:[lon,lat],zoom:Math.max(this.map.getZoom(),16)});}
+}
+</script>

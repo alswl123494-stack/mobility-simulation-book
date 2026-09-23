@@ -1,0 +1,2 @@
+route_id,agency_id,route_short_name,route_type
+L1,EDU,1호선,1

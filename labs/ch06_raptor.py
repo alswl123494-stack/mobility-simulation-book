@@ -1,7 +1,9 @@
 """6장 실습 — RAPTOR
 
-노트북 `labs/ch06_raptor.ipynb` 를 열어 놓고 이 파일의 빈칸을 채웁니다.
-채운 뒤 자가 채점을 돌립니다.
+노트북 `labs/ch06_raptor.ipynb`를 보며
+`Pattern.earliest_trip`과 `raptor`의 빈칸을 채웁니다.
+`TransitData.from_gtfs`는 제공하며, 직접 작성은 심화 과제입니다.
+두 빈칸을 채운 뒤 자가 채점을 돌립니다.
 
     python labs/check.py ch06
 
@@ -55,23 +57,30 @@ class Pattern:
     arrivals: list        # [운행][위치] 도착 시각(초)
     departures: list      # [운행][위치] 출발 시각(초)
     _dep_by_pos: list = field(default_factory=list, repr=False)
+    _sorted: bool = True
 
     def build_index(self):
         """위치별 출발시각 열을 만들어 둡니다. `earliest_trip` 의 이분 탐색에 씁니다."""
         self._dep_by_pos = [
             [trip[i] for trip in self.departures] for i in range(len(self.stops))
         ]
+        self._sorted = all(
+            all(a <= b for a, b in zip(col, col[1:]))
+            for col in self._dep_by_pos
+        )
 
     def earliest_trip(self, position, not_before):
         """position 에서 not_before 이후 가장 이르게 출발하는 운행 번호. 없으면 None.
 
         `build_index()` 가 만들어 둔 `self._dep_by_pos[position]` 이 이 위치의
-        출발 시각을 운행 순서대로 늘어놓은 리스트입니다. 운행이 첫 정류장 출발
-        시각 순으로 정렬되어 있으므로 이 리스트도 오름차순입니다.
+        출발 시각을 운행 순서대로 늘어놓은 리스트입니다. 첫 정류장에서 정렬해도
+        뒤 정류장의 순서까지 보장되지는 않습니다. `_sorted`로 확인합니다.
 
         `bisect_left(리스트, not_before)` 가 "not_before 이상인 첫 원소의 번호"를
         돌려줍니다. 그 번호가 리스트 길이와 같으면 탈 차가 없으니 None 입니다.
-        교재 6.2절 끝의 두 줄짜리 예제가 그대로 이 함수입니다.
+        `_sorted`가 False이면 목록을 훑어 not_before 이상인 최솟값의 번호를 찾습니다.
+        이 처리는 출발편을 찾는 과정이며 추월하는 모든 경로의 최적성을 보장하지는 않습니다.
+        교재 6.3절과 노트북 2절에서 두 경우를 확인합니다.
         """
         raise NotImplementedError("earliest_trip 을 구현하세요")
 
@@ -91,7 +100,11 @@ class TransitData:
 
     @classmethod
     def from_gtfs(cls, feed, max_transfer_m=MAX_TRANSFER_M):
-        """GTFS 를 RAPTOR 자료구조로 바꿉니다.
+        """제공 코드: GTFS를 학생 탐색 함수가 읽을 자료구조로 바꿉니다.
+
+        기본 실습에서는 반환된 패턴·역색인·도보 연결을 읽습니다.
+        `Pattern`은 이 파일의 클래스로 만들므로 `earliest_trip`은 학생 구현을 씁니다.
+        아래 변환 과정을 직접 작성하는 일은 기본 탐색을 마친 뒤의 심화 과제입니다.
 
         순서
         ----
@@ -117,7 +130,21 @@ class TransitData:
         `haversine_m` 으로 정확한 거리를 재고 `DETOUR_FACTOR` 를 곱합니다.
         도보 초는 거리를 `WALK_SPEED_MPS` 로 나눈 값이고, 자기 자신은 넣지 않습니다.
         """
-        raise NotImplementedError("TransitData.from_gtfs 를 구현하세요")
+        from smartmob.teaching.raptor import TransitData as PreparedData
+
+        prepared = PreparedData.from_gtfs(feed, max_transfer_m=max_transfer_m)
+        patterns = [
+            Pattern(p.name, p.route_type, p.stops, p.arrivals, p.departures)
+            for p in prepared.patterns
+        ]
+        for pattern in patterns:
+            pattern.build_index()
+        return cls(
+            stop_ids=prepared.stop_ids, stop_names=prepared.stop_names,
+            stop_lats=prepared.stop_lats, stop_lons=prepared.stop_lons,
+            patterns=patterns, routes_by_stop=prepared.routes_by_stop,
+            transfers=prepared.transfers, index_of=prepared.index_of,
+        )
 
     # -- 아래 셋은 만들어 두었습니다 ----------------------------------------- #
 
@@ -175,11 +202,11 @@ def raptor(data, origins, departure_secs, max_rounds=MAX_ROUNDS):
     ----
     - 2번에서 "타기"와 "내리기"의 순서가 중요합니다. 먼저 내려 보고, 그다음 갈아탑니다
     - 타는 판단에는 **직전 라운드**의 도착시각을 씁니다. 이번 라운드 값을 쓰면
-      한 라운드에 여러 번 갈아타게 되어 환승 횟수가 무너집니다
+      한 라운드에 여러 번 탑승하게 되어 라운드별 탑승 제한이 무너집니다
     - `max_rounds=0` 이면 라운드 0 만 하고 돌아옵니다. 노트북이 라운드별로
       새로 도달한 정류장을 찍어 볼 때 이 성질을 씁니다
-    - 교재 6.5절은 이 함수를 collect_patterns / scan_pattern / walk_transfers /
-      raptor_core 네 개로 나눠 보여 줍니다. 여기서는 하나로 적어도 됩니다
+    - 교재 6.4절 순서대로 패턴 수집, 승하차, 도보 연결, 종료를 작성합니다
+    - 라운드 k는 k번 이하로 탑승한 답입니다. 이전 답을 복사해 시작합니다
     """
     raise NotImplementedError("raptor 를 구현하세요")
 

@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>6장 · RAPTOR의 라운드와 도달 범위</title>__STYLE__</head>
+<body><main>
+<header><div class="eyebrow">06 / RAPTOR</div><h1>시간표를 따라, 한 번 더 타고 갈 수 있는 곳까지</h1><p class="intro">버스를 놓치면 가까운 정류장에서도 오래 기다릴 수 있습니다. RAPTOR는 출발시각을 정한 뒤, 탈 수 있는 운행을 찾으며 정류장별 도착시각을 갱신합니다. 탑승 횟수를 하나씩 늘리는 과정을 라운드로 봅니다.</p></header>
+<nav aria-label="RAPTOR 실습 주제"><button data-panel="toy" aria-pressed="true">① 작은 시간표로 따라가기</button><button data-panel="hanam" aria-pressed="false">② 하남에서 도달 범위 보기</button></nav>
+<section id="toy" data-tab>
+<div class="toolbar"><label>A 출발시각 <select id="toy-departure"></select></label><button id="restart">처음</button><button id="prev">이전</button><button id="play" class="primary">자동 재생</button><button id="next">다음 단계</button><label class="small">계산 단계 <input id="step" type="range" min="0" value="0"></label></div>
+<div class="grid">
+<div class="card"><h2>두 노선, 세 번의 운행</h2><p class="small muted">실제 지형을 생략한 교재의 정류장 A–E 예제입니다. 원 아래는 현재까지 알아낸 가장 이른 도착시각입니다.</p><svg id="toy-network" class="diagram" viewBox="0 0 660 370" role="img" aria-label="A B C는 1호선, D E는 2호선이며 B와 D 사이를 걷습니다."></svg><div class="legend"><span><i class="dot" style="background:var(--blue)"></i>1호선</span><span><i class="dot" style="background:var(--orange)"></i>2호선</span><span>┄ 도보 환승</span></div><div class="table-wrap"><table><thead><tr><th>운행</th><th>A</th><th>B</th><th>C</th><th>D</th><th>E</th></tr></thead><tbody id="toy-timetable"></tbody></table></div><p class="map-caption">이 예제에서는 각 정류장의 도착시각과 출발시각이 같습니다. B–D 도보시간은 본문의 좌표·우회계수·보행속도로 계산합니다.</p></div>
+<div class="card"><div id="step-count" class="step-count"></div><h2 id="round-title"></h2><div id="step-copy" class="step-copy" aria-live="polite"></div><div class="table-wrap"><table><thead><tr><th>정류장</th><th>직전 라운드</th><th>현재 값</th><th>개선</th></tr></thead><tbody id="arrival-table"></tbody></table></div><p id="marked" class="small" style="margin-top:12px"></p><div class="hint"><code>prev</code>는 직전 라운드의 결과입니다. 이번 라운드에서 D에 걸어 도착해도, D에서 2호선을 타는 계산은 다음 라운드에서 합니다.</div></div>
+</div>
+<div class="card wide-card"><h2>5분 늦게 출발하면 도착도 5분 늦어질까요?</h2><p>08:00 출발을 끝까지 재생한 뒤 08:05로 바꿔 봅니다. A에서 타는 운행, D에서의 환승 가능 여부, C와 E의 도착시각을 비교합니다. 08:31에는 이 작은 시간표의 마지막 1호선 운행도 놓칩니다.</p><p class="small muted">화면은 차량 위치를 애니메이션으로 추정하지 않습니다. 제공된 Python <code>raptor</code>가 시간표를 읽고 값을 바꾸는 순서를 재생합니다.</p></div>
+</section>
+<section id="hanam" data-tab hidden>
+<div class="toolbar"><label>하남시청 출발 <select id="real-departure"></select></label><label>탑승 상한 <select id="round-limit"></select></label><button id="round-next">다음 라운드</button><label>통행시간 <select id="budget"><option value="15">15분 이내</option><option value="30" selected>30분 이내</option><option value="45">45분 이내</option><option value="60">60분 이내</option></select></label></div>
+<div class="metrics" id="real-metrics"></div>
+<div class="grid">
+<div class="card"><h2>시간 안에 도달하는 정류장</h2><div class="map-wrap"><canvas id="real-map" aria-label="하남시청 출발 대중교통 도달 정류장 지도. 정류장을 누르면 라운드별 도착시각을 확인할 수 있습니다."></canvas><div class="map-tools"><button id="real-in" aria-label="도달 지도 확대">＋</button><button id="real-out" aria-label="도달 지도 축소">−</button><button id="real-fit">하남 주변</button><button id="real-all">피드 전체</button></div></div><div class="legend"><span><i class="dot" style="background:var(--teal)"></i>15분 이내</span><span><i class="dot" style="background:var(--blue)"></i>15–30분</span><span><i class="dot" style="background:var(--purple)"></i>30–45분</span><span><i class="dot" style="background:var(--orange)"></i>45–60분</span><span><i class="dot" style="background:#bbc7ce"></i>선택 조건 밖</span></div><p class="map-caption">색칠한 점은 정류장입니다. 점 사이 공간까지 도달한다는 뜻은 아닙니다. 가는 회색 선은 정류장 방문 순서이고, 굵은 선은 오른쪽 목적지까지의 경로입니다. 끌어서 이동하고 스크롤로 확대합니다.</p><label class="small" style="margin-top:12px">정류장 확인 <select id="stop-pick"></select></label><div id="real-stop-detail" class="map-info"></div></div>
+<div class="card"><h2>본문의 목적지까지 어떻게 갈까요?</h2><p id="target-name" class="small muted"></p><div id="journey"></div></div>
+</div>
+<div class="card wide-card"><h2>한 번 더 타면 얼마나 넓어질까요?</h2><p id="round-explanation"></p><div id="round-bars" class="round-bars" aria-label="라운드별 시간 내 도달 정류장 수"></div><p class="small muted" style="margin-top:12px">막대를 누르면 그 라운드로 이동합니다. 라운드 k의 값은 <strong>k번 이하 탑승</strong>으로 얻은 가장 이른 도착시각입니다. 이전 결과를 복사하므로 탑승 상한을 늘려도 도착시각은 나빠지지 않습니다.</p></div>
+<div class="hint">같은 30분 조건에서 출발시각을 08:00 → 08:05 → 08:30으로 바꿔 봅니다. 버스와 철도의 배차에 따라 도달 범위가 달라집니다. 이런 비교가 시간대별 대중교통 접근성 분석의 출발점입니다.</div>
+<details class="small muted"><summary>이 지도의 계산 범위와 가정</summary><p>교재의 하남 GTFS 전체를 제공 RAPTOR로 미리 계산했습니다. 출발점 접근 도보는 최대 800 m, 정류장 간 도보 환승은 최대 500 m이며 직선거리에 우회계수 1.35를 곱해 보행속도 1.2 m/s로 나눕니다. 실제 보행망의 통행 가능 여부는 확인하지 않습니다. 지도 확대와 통행시간 선택은 계산 범위를 자르지 않고 결과 표시만 바꿉니다.</p><p>이 장의 구현은 날짜별 운행일 필터, 승하차 제한, 실시간 지연을 반영하지 않습니다. 일부 패턴에는 운행 간 추월이 있어, 후보를 하나만 유지하는 교육용 구현이 최선 경로를 놓칠 수 있습니다. 도보 연결도 하차 뒤 한 차례만 완화합니다. 실시간 길찾기 안내로 쓰는 데이터가 아닙니다. 03:00 출발도 첫차를 기다릴 수 있지만, 30분 이내에 도착할 수 있는 정류장은 적을 수 있습니다.</p></details>
+</section>
+<footer class="footer">자료: 교재 <code>toy_feed()</code>와 하남 GTFS. 계산: <code>smartmob.teaching.raptor</code>. 인터넷 없이 재생합니다. <a href="https://www.microsoft.com/en-us/research/publication/round-based-public-transit-routing/" target="_blank" rel="noopener">RAPTOR 원 논문</a></footer>
+</main><script id="payload" type="application/json">__DATA__</script>__COMMON__
+<script>
+const toy=DATA.toy,real=DATA.real,xy=[[85,125],[320,125],[570,125],[320,285],[570,285]];
+let scenario=0,stepIndex=0,timer=null,realIndex=real.runs.findIndex(r=>r.departure===28800),roundIndex=1,selectedStop=real.target;
+if(realIndex<0)realIndex=0;
+const runToy=()=>toy.runs[scenario],runReal=()=>real.runs[realIndex];
+$('toy-departure').innerHTML=toy.runs.map((r,i)=>`<option value="${i}">${clock(r.departure)}</option>`).join('');
+function pause(){clearInterval(timer);timer=null;$('play').textContent='자동 재생';}
+function explanation(s){
+ const name=i=>toy.stops[i],p=toy.patterns[s.pattern];
+ switch(s.kind){
+ case'access':return['라운드 0 · 출발점 기록',`A에 ${clock(runToy().departure)}을 적습니다. 아직 교통수단을 타지 않았습니다.`];
+ case'round':return['훑을 패턴 모으기',`직전 라운드에서 개선된 ${s.marked.map(name).join(', ')}를 지나는 ${s.queue.map(i=>toy.patterns[i].name).join(', ')}을 모읍니다. 이전 도착시각을 현재 배열에 복사합니다.`];
+ case'pattern':return[`${p.name} 시간표 확인`,`${name(s.stop)}부터 정류장 순서대로 훑습니다. 탑승 가능 여부에는 직전 라운드의 도착시각을 씁니다.`];
+ case'board':return[`${name(s.stop)}에서 탈 수 있는 운행 선택`,`${name(s.stop)}에는 ${clock(s.ready)}에 도착할 수 있습니다. ${clock(s.departure)}에 출발하는 ${p.name}을 선택합니다. 기다리는 시간은 ${mins(s.departure-s.ready)}분입니다.`];
+ case'ride':return[`${name(s.stop)}의 도착시각 개선`,`${name(s.origin)}에서 선택한 ${p.name}을 타면 ${name(s.stop)}에 ${clock(s.arrival)}에 도착합니다. 더 이른 시각이므로 현재 값을 바꿉니다.`];
+ case'walk':return[`${name(s.origin)} → ${name(s.stop)} 도보 환승`,`${s.seconds}초를 걸어 ${name(s.stop)}에 ${clock(s.arrival)}에 도착합니다. 도보는 탑승 횟수를 늘리지 않습니다. 여기서 다음 차를 타는 계산은 다음 라운드에서 합니다.`];
+ case'miss':return[`${name(s.stop)}에서 탈 수 있는 차가 없습니다`,`${name(s.stop)}의 직전 라운드 도착시각 ${clock(s.ready)} 이후에는 이 패턴의 남은 운행이 없습니다.`];
+ case'end':return[s.marked.length?'이번 라운드 결과':'개선이 없어 탐색 종료',s.marked.length?`${s.marked.map(name).join(', ')}의 도착시각이 나아졌습니다. 다음 라운드에서는 이 정류장들을 지나는 패턴을 확인합니다.`:'시간표를 더 훑어도 도착시각이 나아지지 않았습니다. —는 이 출발시각과 시간표에서 도달하지 못한 정류장입니다.'];
+ }
+}
+function renderToy(){
+ const run=runToy(),s=run.steps[stepIndex],prev=s.round?run.rounds[s.round-1]:toy.stops.map(()=>null),detail=explanation(s);
+ $('step').max=run.steps.length-1;$('step').value=stepIndex;$('prev').disabled=stepIndex===0;$('next').disabled=stepIndex===run.steps.length-1;
+ $('step-count').textContent=`${stepIndex+1} / ${run.steps.length} 단계`;$('round-title').textContent=`라운드 ${s.round} · ${s.round===0?'접근 도보':`최대 ${s.round}번 탑승`}`;
+ $('step-copy').innerHTML=`<h3>${esc(detail[0])}</h3><p>${esc(detail[1])}</p>`;
+ $('arrival-table').innerHTML=toy.stops.map((name,i)=>{const changed=s.times[i]!==null&&(prev[i]===null||s.times[i]<prev[i]);return`<tr><td>${name}</td><td class="mono">${clock(prev[i])}</td><td class="mono ${changed?'changed':''}">${clock(s.times[i])}</td><td>${changed?'● 개선':'유지'}</td></tr>`;}).join('');
+ $('marked').textContent=`${s.kind==='round'?'직전 라운드에서':'현재 라운드에서'} 개선된 정류장: ${s.marked.map(i=>toy.stops[i]).join(', ')||'없음'}`;
+ let svg=`<path d="M85 125H570" fill="none" stroke="${COLORS.blue}" stroke-width="5" opacity=".3"/><path d="M320 285H570" fill="none" stroke="${COLORS.orange}" stroke-width="5" opacity=".3"/><path d="M320 125V285" fill="none" stroke="${COLORS.teal}" stroke-width="3" stroke-dasharray="7 7"/><text x="175" y="86">1호선 →</text><text x="410" y="254">2호선 →</text><text x="345" y="219">도보 ${toy.walks[0][2]}초</text>`;
+ if(s.kind==='ride'){const p=toy.patterns[s.pattern],a=p.stops.indexOf(s.origin),b=p.stops.indexOf(s.stop);svg+=`<polyline points="${p.stops.slice(a,b+1).map(i=>xy[i].join(',')).join(' ')}" fill="none" stroke="${s.pattern?COLORS.orange:COLORS.blue}" stroke-width="7"/>`;}
+ if(s.kind==='walk')svg+=`<path d="M320 125V285" fill="none" stroke="${COLORS.teal}" stroke-width="6" stroke-dasharray="7 5"/>`;
+ svg+=toy.stops.map((name,i)=>{const[x,y]=xy[i],known=s.times[i]!==null,active=s.stop===i;return`${active?`<circle cx="${x}" cy="${y}" r="29" fill="none" stroke="${COLORS.orange}" stroke-width="3"/>`:''}<circle cx="${x}" cy="${y}" r="21" fill="${known?'#e4f2f0':'white'}" stroke="${known?COLORS.teal:COLORS.gray}" stroke-width="2"/><text x="${x}" y="${y+5}" text-anchor="middle" font-weight="700">${name}</text><text x="${x}" y="${y+49}" text-anchor="middle">${clock(s.times[i])}</text>`;}).join('');$('toy-network').innerHTML=svg;
+ $('toy-timetable').innerHTML=toy.patterns.flatMap((p,pi)=>p.departures.map((trip,ti)=>`<tr class="${s.pattern===pi&&s.trip===ti?'active':''}"><td>${p.name} · ${ti+1}차</td>${toy.stops.map((_,i)=>{const pos=p.stops.indexOf(i);return`<td class="mono">${pos<0?'—':clock(trip[pos]).slice(0,5)}</td>`;}).join('')}</tr>`)).join('');
+}
+$('toy-departure').onchange=()=>{pause();scenario=+$('toy-departure').value;stepIndex=0;renderToy();};
+$('restart').onclick=()=>{pause();stepIndex=0;renderToy();};$('prev').onclick=()=>{pause();stepIndex=Math.max(0,stepIndex-1);renderToy();};$('next').onclick=()=>{pause();stepIndex=Math.min(runToy().steps.length-1,stepIndex+1);renderToy();};$('step').oninput=()=>{pause();stepIndex=+$('step').value;renderToy();};
+$('play').onclick=()=>{if(timer){pause();return;}if(stepIndex===runToy().steps.length-1)stepIndex=0;$('play').textContent='일시 정지';renderToy();timer=setInterval(()=>{stepIndex++;renderToy();if(stepIndex===runToy().steps.length-1)pause();},1400);};
+const map=new StopMap('real-map',real.stops,real.boundary,i=>{selectedStop=i;$('stop-pick').value=i;renderStop();});
+function nearby(){map.center=[-3,-1];map.span=23;map.draw();}
+wireMap(map,'real',nearby);$('real-all').onclick=()=>map.fit(real.stops.map((_,i)=>i));
+$('real-departure').innerHTML=real.runs.map((r,i)=>`<option value="${i}">${clock(r.departure)}</option>`).join('');$('real-departure').value=realIndex;
+$('stop-pick').innerHTML=real.stops.map((s,i)=>[s,i]).sort((a,b)=>a[0][1].localeCompare(b[0][1],'ko')).map(([s,i])=>`<option value="${i}">${esc(s[1])} · ${esc(s[0])}</option>`).join('');$('stop-pick').value=selectedStop;$('stop-pick').onchange=()=>{selectedStop=+$('stop-pick').value;map.selected=selectedStop;map.center=[...map.points[selectedStop]];map.draw();renderStop();};
+function setRoundOptions(){const r=runReal();roundIndex=Math.min(roundIndex,r.rounds.length-1);$('round-limit').innerHTML=r.rounds.map((_,k)=>`<option value="${k}">${k===0?'0회 · 접근 도보만':`${k}회 이하 · 환승 최대 ${k-1}회`}</option>`).join('');$('round-limit').value=roundIndex;}
+function renderStop(){const run=runReal(),s=real.stops[selectedStop],arrival=run.rounds[roundIndex][selectedStop];$('real-stop-detail').innerHTML=`<strong>${esc(s[1])}</strong><br><span class="small">${arrival===null?'현재 탑승 상한에서는 도달하지 못합니다.':`${clock(arrival)} 도착 · 출발부터 ${mins(arrival-run.departure)}분`}<br>${run.rounds.map((row,k)=>`${k}회: ${clock(row[selectedStop]).slice(0,5)}`).join(' / ')}</span>`;map.selected=selectedStop;}
+function pathLayers(legs){return legs.map(leg=>{if(leg.kind==='transit')return{stops:leg.stop_path,color:COLORS.blue,width:3.5};return{coords:[leg.kind==='access'?map.project(...real.origin):map.points[leg.from],map.points[leg.to]],color:COLORS.teal,width:3,dash:[5,4]};});}
+function renderJourney(){
+ const run=runReal(),path=run.paths[roundIndex],s=path.summary;$('target-name').textContent=`미사역 부근의 실습 좌표에서 가장 가까운 정류장: ${real.stops[real.target][1]}. 여기까지 계산하며 미사역까지의 추가 도보는 포함하지 않습니다.`;
+ if(!s.reachable){$('journey').innerHTML='<div class="hint">현재 탑승 상한으로는 이 정류장에 도달하지 못합니다. 다음 라운드로 넘어가 봅니다.</div>';return;}
+ let now=run.departure,parts=[],list=[];
+ for(const leg of path.legs){if(leg.kind==='transit'){const wait=leg.board_time-now;if(wait>0){parts.push({kind:'대기',s:wait,color:COLORS.orange});list.push(`<li><span class="time mono">${clock(now).slice(0,5)}</span><span>대기 ${mins(wait)}분 · ${esc(real.stops[leg.from][1])}</span></li>`);}const seconds=leg.alight_time-leg.board_time;parts.push({kind:'차내',s:seconds,color:COLORS.blue});list.push(`<li><span class="time mono">${clock(leg.board_time).slice(0,5)}</span><span><strong>${esc(leg.route)}</strong> 탑승 · ${mins(seconds)}분<br>${esc(real.stops[leg.from][1])} → ${esc(real.stops[leg.to][1])}</span></li>`);now=leg.alight_time;}else{parts.push({kind:'도보',s:leg.seconds,color:COLORS.teal});list.push(`<li><span class="time mono">${clock(now).slice(0,5)}</span><span>도보 ${mins(leg.seconds)}분<br>${leg.kind==='access'?'하남시청':esc(real.stops[leg.from][1])} → ${esc(real.stops[leg.to][1])}</span></li>`);now+=leg.seconds;}}
+ const total=parts.reduce((sum,p)=>sum+p.s,0);$('journey').innerHTML=`<div class="metrics"><div class="metric"><b>${s.total_min}분</b><span>총 통행시간</span></div><div class="metric"><b>${clock(now).slice(0,5)}</b><span>도착시각</span></div><div class="metric"><b>${s.transfers}회</b><span>환승</span></div></div><div class="journey-bar" aria-label="통행시간 구성">${parts.map(p=>`<div style="flex:${p.s};background:${p.color}" title="${p.kind} ${mins(p.s)}분">${p.s/total>.12?p.kind:''}</div>`).join('')}</div><div class="legend"><span class="teal">도보 ${s.walk_min}분</span><span class="orange">대기 ${s.wait_min}분</span><span class="blue">차내 ${s.in_vehicle_min}분</span></div><ul class="leg-list">${list.join('')}</ul><p class="small muted">지도에 그린 경로는 이 목적지에 대한 결과입니다. 왼쪽 통행시간 필터를 넘는 경로도 내역은 그대로 보여 줍니다.</p>`;
+}
+function renderReal(){
+ const run=runReal(),row=run.rounds[roundIndex],prev=run.rounds[Math.max(0,roundIndex-1)],budget=+$('budget').value*60,within=t=>t!==null&&t-run.departure<=budget;
+ const reached=row.filter(within).length,improved=row.filter((t,i)=>t!==null&&(roundIndex===0||prev[i]===null||t<prev[i])).length;
+ $('round-limit').value=roundIndex;$('round-next').disabled=roundIndex===run.rounds.length-1;
+ $('real-metrics').innerHTML=`<div class="metric"><b>${num(reached)}곳</b><span>${budget/60}분 이내 정류장</span></div><div class="metric"><b>${num(improved)}곳</b><span>이번 라운드에서 개선 · 시간 필터 적용 전</span></div><div class="metric"><b>${num(real.stops.length)}곳</b><span>전체 피드 정류장</span></div>`;
+ map.colors=row.map(t=>{if(!within(t))return COLORS.gray;const m=(t-run.departure)/60;return m<=15?COLORS.teal:m<=30?COLORS.blue:m<=45?COLORS.purple:COLORS.orange;});map.sizes=row.map(t=>within(t)?3.2:1.4);map.layers=real.patterns.map(stops=>({stops,color:'#cfd9dd',width:.6})).concat(pathLayers(run.paths[roundIndex].legs));renderStop();map.draw();renderJourney();
+ const counts=run.rounds.map(r=>r.filter(within).length),max=Math.max(1,...counts);$('round-bars').innerHTML=counts.map((n,k)=>`<button class="round-bar ${roundIndex===k?'active':''}" data-round="${k}" aria-label="${k}회 이하 탑승, ${n}곳 도달" style="height:${Math.max(33,n/max*100)}%"><span>${k}회<br>${num(n)}곳</span></button>`).join('');
+ $('round-explanation').textContent=`${clock(run.departure)} 출발, ${budget/60}분 이내 조건입니다. 라운드 ${roundIndex}에서는 최대 ${roundIndex}번 탑승한 결과를 봅니다. 시간표에서 오래 기다리는 정류장은 가까워도 조건 밖일 수 있습니다.`;
+}
+$('round-bars').onclick=e=>{const b=e.target.closest('[data-round]');if(b){roundIndex=+b.dataset.round;renderReal();}};
+$('real-departure').onchange=()=>{realIndex=+$('real-departure').value;setRoundOptions();renderReal();};$('round-limit').onchange=()=>{roundIndex=+$('round-limit').value;renderReal();};$('budget').onchange=renderReal;$('round-next').onclick=()=>{roundIndex=Math.min(roundIndex+1,runReal().rounds.length-1);renderReal();};
+setupTabs(panel=>{pause();if(panel==='hanam')renderReal();});
+renderToy();setRoundOptions();nearby();renderReal();
+const initialPanel=location.hash.slice(1)||DATA.view;
+document.querySelectorAll('[data-panel]').forEach(b=>{if(b.dataset.panel===initialPanel)b.click();});
+</script></body></html>

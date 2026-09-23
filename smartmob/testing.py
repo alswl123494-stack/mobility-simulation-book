@@ -235,7 +235,25 @@ def check_raptor(build, search, city: str = "hanam") -> Report:
         got = best[at("C")]
         if got != 8 * 3600 + 50 * 60:
             return False, f"08:05 출발이면 첫 차를 놓쳐 08:50 인데 {got} 초가 나왔습니다"
+        if best[at("E")] != INF:
+            return False, "D에 도착하기 전에 08:15 차가 떠났으므로 E는 미도달이어야 합니다"
         return True, "08:50 도착"
+
+    def zero_rounds():
+        best = search(toy, [(at("A"), 60)], 8 * 3600, max_rounds=0)
+        if best[at("A")] != 8 * 3600 + 60:
+            return False, "라운드 0에도 접근 도보 시간을 더해야 합니다"
+        if any(best[at(s)] != INF for s in ("B", "C", "D", "E")):
+            return False, "탑승을 허용하지 않았으므로 A 외의 정류장은 미도달입니다"
+        return True, "접근 도보만 반영"
+
+    def one_boarding():
+        best = search(toy, [(at("A"), 0)], 8 * 3600, max_rounds=1)
+        if best[at("C")] != 8 * 3600 + 20 * 60 or best[at("D")] == INF:
+            return False, "첫 탑승으로 C, 하차 뒤 도보로 D에 도달해야 합니다"
+        if best[at("E")] != INF:
+            return False, "E는 두 번 탑승해야 합니다. 승차 판단에 prev를 쓰는지 확인합니다"
+        return True, "C와 D는 도달, E는 미도달"
 
     def access_walk_counts():
         best = search(toy, [(at("A"), 600)], 8 * 3600 - 300)   # 07:55 + 도보 10분
@@ -251,6 +269,8 @@ def check_raptor(build, search, city: str = "hanam") -> Report:
 
     report.check("직통 — A 08:00 → C 08:20", direct_ride)
     report.check("환승 — A 08:00 → E 08:25", one_transfer)
+    report.check("라운드 0 — 접근 도보만", zero_rounds)
+    report.check("라운드 1 — 탑승 한 번만", one_boarding)
     report.check("첫 차를 놓치면 다음 차", missed_first_trip)
     report.check("접근 도보가 출발 시각에 더해진다", access_walk_counts)
     report.check("막차 이후에는 못 간다", after_service)
@@ -275,7 +295,7 @@ def check_raptor(build, search, city: str = "hanam") -> Report:
     def monotone_in_departure():
         early = search(real, origins, 8 * 3600)
         late = search(real, origins, 8 * 3600 + 1800)
-        bad = sum(1 for a, b in zip(early, late) if a < INF and b < INF and b < a)
+        bad = sum(1 for a, b in zip(early, late) if b < a)
         if bad:
             return False, f"늦게 출발했는데 더 일찍 도착한 정류장 {bad}개"
         return True, "30분 늦게 출발하면 절대 더 일찍 도착하지 않는다"

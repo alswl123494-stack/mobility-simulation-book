@@ -27,7 +27,7 @@ dev = ["pytest>=8.0"]
 include = ["smartmob*"]
 
 [tool.setuptools.package-data]
-"smartmob.viz" = ["*.html"]
+"smartmob.viz" = ["*.html", "vendor/maplibre-gl/*"]
 
 [tool.jupytext]
 formats = "md:myst"

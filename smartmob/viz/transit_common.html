@@ -1,0 +1,49 @@
+<script>
+'use strict';
+const DATA=JSON.parse(document.getElementById('payload').textContent);
+const $=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const clock=s=>s===null||s===undefined?'—':[Math.floor(s/3600),Math.floor(s%3600/60),Math.floor(s%60)].map(n=>String(n).padStart(2,'0')).join(':');
+const mins=s=>(s/60).toFixed(1);
+const num=n=>n.toLocaleString('ko-KR');
+const COLORS={blue:'#2469bc',teal:'#087e83',orange:'#b85b20',purple:'#8054a0',gray:'#bbc7ce',ink:'#193344'};
+function setupTabs(onchange){
+ document.querySelectorAll('[data-panel]').forEach(button=>button.addEventListener('click',()=>{
+  document.querySelectorAll('[data-panel]').forEach(b=>b.setAttribute('aria-pressed',b===button));
+  document.querySelectorAll('section[data-tab]').forEach(s=>s.hidden=s.id!==button.dataset.panel);
+  onchange?.(button.dataset.panel);
+ }));
+}
+class StopMap{
+ constructor(id,stops,boundary,onpick){
+  this.canvas=$(id);this.ctx=this.canvas.getContext('2d');this.stops=stops;this.points=stops.map(s=>this.project(s[2],s[3]));
+  this.boundary=boundary.map(r=>r.map(p=>this.project(...p)));this.onpick=onpick;this.center=[0,0];this.span=20;this.layers=[];this.colors=[];this.sizes=[];this.selected=-1;
+  this.canvas.addEventListener('wheel',e=>{e.preventDefault();this.zoom(e.deltaY>0?1.2:1/1.2);},{passive:false});
+  this.canvas.addEventListener('pointerdown',e=>{this.drag={x:e.clientX,y:e.clientY,center:[...this.center]};this.canvas.setPointerCapture(e.pointerId);});
+  this.canvas.addEventListener('pointermove',e=>{if(!this.drag)return;const scale=this.width/this.span;this.center=[this.drag.center[0]-(e.clientX-this.drag.x)/scale,this.drag.center[1]-(e.clientY-this.drag.y)/scale];this.draw();});
+  this.canvas.addEventListener('pointerup',e=>{if(!this.drag)return;const distance=Math.hypot(e.clientX-this.drag.x,e.clientY-this.drag.y);this.drag=null;if(distance<5)this.pick(e);});
+  this.canvas.addEventListener('pointercancel',()=>{this.drag=null;});
+  new ResizeObserver(()=>this.draw()).observe(this.canvas);
+ }
+ project(lon,lat){return[(lon-127.2148)*88.3,(37.5393-lat)*111.2];}
+ screen(p){const scale=this.width/this.span;return[(p[0]-this.center[0])*scale+this.width/2,(p[1]-this.center[1])*scale+this.height/2];}
+ zoom(factor){this.span=Math.min(420,Math.max(.4,this.span*factor));this.draw();}
+ fit(indices){let pts=indices.map(i=>this.points[i]);if(!pts.length)return;const xs=pts.map(p=>p[0]),ys=pts.map(p=>p[1]);const x0=Math.min(...xs),x1=Math.max(...xs),y0=Math.min(...ys),y1=Math.max(...ys);this.center=[(x0+x1)/2,(y0+y1)/2];this.span=Math.max(2,x1-x0,(y1-y0)*(this.canvas.clientWidth||500)/(this.canvas.clientHeight||390))*1.25;this.draw();}
+ pick(e){const r=this.canvas.getBoundingClientRect();const x=this.center[0]+(e.clientX-r.left-this.width/2)*this.span/this.width,y=this.center[1]+(e.clientY-r.top-this.height/2)*this.span/this.width;if(this.onlocation?.([127.2148+x/88.3,37.5393-y/111.2]))return;let best=16,idx=-1;this.points.forEach((p,i)=>{if(this.colors[i]===null)return;const q=this.screen(p);const d=Math.hypot(q[0]-(e.clientX-r.left),q[1]-(e.clientY-r.top));if(d<best){best=d;idx=i;}});if(idx>=0){this.selected=idx;this.onpick?.(idx);this.draw();}}
+ line(coords,color,width=1,dash=[]){if(coords.length<2)return;const c=this.ctx;c.beginPath();coords.forEach((p,i)=>{const q=this.screen(p);i?c.lineTo(...q):c.moveTo(...q);});c.strokeStyle=color;c.lineWidth=width;c.setLineDash(dash);c.stroke();c.setLineDash([]);}
+ draw(){
+  this.width=this.canvas.clientWidth;this.height=this.canvas.clientHeight;if(!this.width)return;
+  const dpr=window.devicePixelRatio||1;this.canvas.width=this.width*dpr;this.canvas.height=this.height*dpr;const c=this.ctx;c.scale(dpr,dpr);c.fillStyle='#f1f5f5';c.fillRect(0,0,this.width,this.height);
+  c.strokeStyle='#e5ecee';c.lineWidth=1;for(let x=0;x<this.width;x+=50){c.beginPath();c.moveTo(x,0);c.lineTo(x,this.height);c.stroke();}for(let y=0;y<this.height;y+=50){c.beginPath();c.moveTo(0,y);c.lineTo(this.width,y);c.stroke();}
+  this.boundary.forEach(r=>{c.beginPath();r.forEach((p,i)=>{const q=this.screen(p);i?c.lineTo(...q):c.moveTo(...q);});c.closePath();c.strokeStyle='#9bb6a4';c.lineWidth=1;c.stroke();});
+  this.layers.forEach(l=>this.line(l.coords||l.stops.map(i=>this.points[i]),l.color,l.width,l.dash));
+  this.points.forEach((p,i)=>{if(this.colors[i]===null)return;const q=this.screen(p);if(q[0]<-10||q[0]>this.width+10||q[1]<-10||q[1]>this.height+10)return;c.beginPath();c.arc(...q,this.sizes[i]||2.5,0,Math.PI*2);c.fillStyle=this.colors[i]||COLORS.gray;c.fill();});
+  if(this.selected>=0){const q=this.screen(this.points[this.selected]);c.beginPath();c.arc(...q,8,0,Math.PI*2);c.strokeStyle=COLORS.ink;c.lineWidth=2;c.stroke();}
+  const q=this.screen([0,0]);if(q[0]>0&&q[0]<this.width&&q[1]>25&&q[1]<this.height){c.fillStyle=COLORS.ink;c.fillRect(q[0]-4,q[1]-4,8,8);c.font='12px sans-serif';c.fillText('하남시청',q[0]+8,q[1]+16);}
+  c.fillStyle='#61717b';c.font='11px sans-serif';c.fillText('N ↑',this.width-34,this.height-17);const km=this.span>80?20:this.span>20?5:this.span>5?1:.2;const len=km/this.span*this.width;c.fillRect(15,this.height-20,len,2);c.fillText(`${km} km`,15,this.height-26);
+  this.overlay?.(c);
+ }
+}
+function wireMap(map,prefix,fit){$(prefix+'-in').onclick=()=>map.zoom(1/1.5);$(prefix+'-out').onclick=()=>map.zoom(1.5);$(prefix+'-fit').onclick=fit;}
+new ResizeObserver(()=>{try{if(window.frameElement)window.frameElement.style.height=(document.body.scrollHeight+24)+'px';}catch{}}).observe(document.body);
+</script>

@@ -9,7 +9,7 @@
 | `ch02_road_network.ipynb` | 2장 | 도로망 표 열어 보기 | |
 | `ch03_dijkstra.ipynb` | 3장 | 최단경로 **직접 구현 1** | `ch03_dijkstra.py` |
 | `ch04_speeds_engine.ipynb` | 4장 | 시간대별 속도가 경로를 바꾸는 것 | |
-| `ch05_gtfs.ipynb` | 5장 | GTFS 시간표와 경계로 자르기 | |
+| `ch05_gtfs.ipynb` | 5장 | GTFS 구성 이해와 정류장 3곳의 시간표 작성 | |
 | `ch06_raptor.ipynb` | 6장 | 대중교통 경로 탐색 **직접 구현 2** | `ch06_raptor.py` |
 | `ch07_raptor_fare.ipynb` | 7장 | 환승 제한, 요금, 지표 분포 | |
 | `ch08_demand.ipynb` | 8장 | 수요 만들기와 그 결과 확인 | |
@@ -18,6 +18,17 @@
 | `ch11_simloop.ipynb` | 11장 | 시뮬레이션 루프 **직접 구현 3** | `ch11_simloop.py` |
 | `ch12_metrics.ipynb` | 12장 | 지표, 파레토 곡선, 보고서 표 | |
 | `ch12_viewer/` | 12장 | 통행 애니메이션 뷰어 **직접 만들기** | `ch12_viewer/src/main.js` |
+
+## 5·6장 추가 자료
+
+직접 채울 함수는 `Pattern.earliest_trip`과 `raptor` 두 개이며 `TransitData.from_gtfs`는 제공됩니다.
+자료 변환을 직접 작성하는 일은 심화 과제입니다.
+
+- [5장 추가 탐색](extensions/ch05_gtfs_exploration.ipynb): 하남 자료·지역 선택·지도·패턴.
+- [6장 추가 탐색](extensions/ch06_raptor_exploration.ipynb): 출발시각·탑승 상한·도달 범위.
+- [신규 노선 통합 과제](../projects/gtfs_route_design/README.md): GTFS ZIP 작성과 노선 추가 전후 비교.
+
+추가 탐색과 통합 과제는 각자 필요한 자료를 읽으므로 새 커널에서 독립 실행할 수 있습니다.
 
 ## 여는 법
 
@@ -95,7 +106,7 @@ check("ch03")
 | 실습 | 무엇과 대조하는가 |
 |---|---|
 | 3장 | NetworkX 의 최단거리와 30쌍 완전 일치 |
-| 6장 | 답을 손으로 아는 작은 시간표 5케이스 + 실제 하남 GTFS 불변식 2개 |
+| 6장 | 작은 시간표의 직통·환승·탑승 제한·출발시각 조건과 하남 자료의 불변식 |
 | 11장 | DTUMOS 엔진과 평균 대기시간 1.5분 이내, 출력 형식 일치 |
 
 ## 12장 웹 뷰어

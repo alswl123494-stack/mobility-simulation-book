@@ -27,7 +27,8 @@ h4 {
     font-size: 1em; /* 24px */
 }
 
-.dijkstra-demo {
+.dijkstra-demo,
+.transit-demo {
     display: block;
     width: 100%;
     border: 0;
