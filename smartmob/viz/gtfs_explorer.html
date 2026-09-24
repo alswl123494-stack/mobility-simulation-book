@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>5장 · GTFS의 구조와 버스 노선 설계</title>__STYLE__</head>
+<body><main>
+<header><div class="eyebrow">05 / GTFS</div><h1>GTFS의 구조와 버스 노선 설계</h1><p class="intro">GTFS는 노선, 정류장, 운행일과 시간표를 서로 연결된 파일로 표현합니다. 하남시 실습 자료에서 각 파일의 관계를 확인한 뒤, 정류장과 시간표를 설정해 신규 노선의 GTFS를 작성합니다.</p></header>
+<nav aria-label="GTFS 실습 주제"><button data-panel="tables" aria-pressed="true">① GTFS 구조와 시간표</button><button data-panel="builder" aria-pressed="false">② 신규 노선 설계</button></nav>
+<div id="selection" class="toolbar"><label>노선 <select id="route"></select></label><label>운행 <select id="trip"></select></label></div>
+<section id="tables" data-tab>
+<div class="card">
+<h2>노선과 개별 운행의 관계</h2><p class="small muted">같은 노선이라도 출발시각이 다르면 별도의 운행(trip)으로 기록합니다. 각 운행의 정류장 방문 순서와 시각은 <code>stop_times.txt</code>에 저장합니다.</p><p id="route-summary" class="insight"></p>
+<div class="keys" id="keys"></div>
+<p class="flow"><code>routes</code> → route_id → <code>trips</code> → trip_id → <code>stop_times</code> → stop_id → <code>stops</code><br><code>calendar</code> → service_id → <code>trips</code></p>
+<p id="pattern-note" class="small muted"></p>
+</div>
+<div class="grid wide-card">
+<div class="card"><h2>운행별 정류장 시간표</h2><p class="small muted">정류장 이름을 선택하면 지도에서 위치를 확인할 수 있습니다. 이름이 같아도 <code>stop_id</code>가 다를 수 있으므로 식별자와 위치를 함께 확인합니다.</p><div class="table-wrap timetable"><table><thead><tr><th>방문 순서</th><th>정류장</th><th>도착시각</th><th>출발시각</th></tr></thead><tbody id="stop-times"></tbody></table></div><p id="row-key" class="small mono"></p></div>
+<div class="card"><h2>정류장 위치와 방문 순서</h2><div class="map-wrap"><canvas id="route-map" aria-label="선택한 운행의 정류장 위치. 시간표에서도 정류장을 선택할 수 있습니다."></canvas><div class="map-tools"><button id="route-in" aria-label="운행 지도 확대">＋</button><button id="route-out" aria-label="운행 지도 축소">−</button><button id="route-fit">전체 정류장 보기</button></div></div><div id="stop-detail" class="map-info"></div><p class="map-caption">실습 자료의 정류장 좌표를 방문 순서대로 연결했습니다. 연결선은 차량의 실제 주행 경로를 나타내지 않습니다. 녹색 선은 하남시 경계입니다. 지도를 드래그해 이동하고 스크롤로 확대·축소합니다.</p></div>
+</div>
+<div class="hint">같은 노선에서 출발시각이 다른 운행을 선택해 봅니다. <code>route_id</code>가 같아도 <code>trip_id</code>와 시간표는 달라집니다. 같은 노선에서 정류장 방문 순서가 같은 운행들은 하나의 <strong>패턴</strong>으로 묶습니다. 6장에서는 패턴별 시간표를 이용해 경로를 탐색합니다.</div>
+</section>
+__BUILDER_PANEL__
+<footer class="footer">자료: 교재에 포함된 하남 GTFS. 예제 노선에 속한 운행을 모두 표시하며, 실시간 도착정보는 제공하지 않습니다. GTFS 명세는 이 장에서 다루는 파일 외에도 추가 파일을 정의합니다. <a href="https://gtfs.org/documentation/schedule/reference/" target="_blank" rel="noopener">GTFS 명세</a></footer>
+</main><script id="payload" type="application/json">__DATA__</script>__COMMON__
+__BUILDER_MAP__
+__BUILDER_SCRIPT__
+<script>
+let routeIndex=0,tripIndex=0,rowIndex=0;
+const currentRoute=()=>DATA.routes[routeIndex],currentTrip=()=>currentRoute().trips[tripIndex];
+const routeMap=new StopMap('route-map',DATA.stops,DATA.boundary,i=>{const row=currentTrip().rows.findIndex(r=>r[0]===i);if(row>=0)selectRow(row,true);});
+wireMap(routeMap,'route',()=>routeMap.fit(currentTrip().rows.map(r=>r[0])));
+$('route').innerHTML=DATA.routes.map((r,i)=>`<option value="${i}">${esc(r.name)} · ${r.type===1?'도시철도':'버스'}</option>`).join('');
+function selectRoute(){routeIndex=+$('route').value;tripIndex=0;const r=currentRoute();$('trip').innerHTML=r.trips.map((t,i)=>`<option value="${i}">${clock(t.rows[0][3])} 첫 정류장 출발 · 패턴 ${t.pattern+1}</option>`).join('');renderTrip();}
+function renderTrip(){
+ const r=currentRoute(),t=currentTrip();rowIndex=0;
+ $('route-summary').innerHTML=`<strong>${esc(r.name)}</strong> 노선에는 운행 <strong>${num(r.trips.length)}회</strong>와 정류장 방문 순서에 따른 패턴 <strong>${r.patterns}개</strong>가 있습니다.`;
+ const cal=DATA.calendar.find(c=>c.service_id===t.service),days=['monday','tuesday','wednesday','thursday','friday','saturday','sunday'];
+ const service=cal?`${days.map((d,i)=>cal[d]==='1'?'월화수목금토일'[i]:'').join('·')} / ${esc(cal.start_date)}–${esc(cal.end_date)}`:'이 service_id의 calendar 행이 없습니다.';
+ $('keys').innerHTML=`<div class="key"><strong>routes.txt · 노선</strong>route_id<br><code>${esc(r.id)}</code></div><div class="key"><strong>trips.txt · 운행</strong>trip_id<br><code>${esc(t.id)}</code></div><div class="key"><strong>calendar.txt · 운행일</strong>service_id <code>${esc(t.service)}</code><br>${service}</div>`;
+ $('pattern-note').textContent=`선택한 운행은 패턴 ${t.pattern+1}에 속하며, 정류장 방문 기록은 ${t.rows.length}건입니다. 운행 선택 목록의 ‘출발’은 첫 정류장 출발시각입니다.`;
+ $('stop-times').innerHTML=t.rows.map((row,i)=>`<tr data-row="${i}"><td>${row[1]}</td><td><button class="row-select" data-row="${i}">${esc(DATA.stops[row[0]][1])}</button></td><td class="mono">${clock(row[2])}</td><td class="mono">${clock(row[3])}</td></tr>`).join('');
+ const ids=new Set(t.rows.map(row=>row[0]));routeMap.colors=DATA.stops.map((s,i)=>ids.has(i)?COLORS.teal:null);routeMap.sizes=DATA.stops.map(()=>3);routeMap.layers=[{stops:t.rows.map(row=>row[0]),color:COLORS.blue,width:2}];selectRow(0);routeMap.fit([...ids]);
+}
+function selectRow(i,scroll=false){
+ rowIndex=i;const r=currentTrip().rows[i],s=DATA.stops[r[0]];document.querySelectorAll('#stop-times tr').forEach((tr,j)=>tr.classList.toggle('active',i===j));
+ if(scroll){const row=$('stop-times').children[i],wrap=row.closest('.table-wrap');wrap.scrollTop=row.offsetTop-wrap.offsetTop-wrap.clientHeight/2;}
+ $('row-key').innerHTML=`stop_id = ${esc(s[0])}`;
+ $('stop-detail').innerHTML=`<strong>${r[1]}번째 · ${esc(s[1])}</strong><br><span class="small">stops.txt: 위도 ${s[3].toFixed(6)} · 경도 ${s[2].toFixed(6)}<br>도착 ${clock(r[2])} / 출발 ${clock(r[3])}</span>`;routeMap.selected=r[0];routeMap.draw();
+}
+$('stop-times').onclick=e=>{const tr=e.target.closest('[data-row]');if(tr)selectRow(+tr.dataset.row);};
+$('route').onchange=selectRoute;$('trip').onchange=()=>{tripIndex=+$('trip').value;renderTrip();};
+setupTabs(panel=>{
+ $('selection').hidden=panel!=='tables';
+ if(panel==='tables')routeMap.fit(currentTrip().rows.map(r=>r[0]));
+ if(panel==='builder')showBuilder();
+});
+selectRoute();
+const initialPanel=location.hash.slice(1)||DATA.view;
+document.querySelectorAll('[data-panel]').forEach(b=>{if(b.dataset.panel===initialPanel)b.click();});
+</script></body></html>

@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="710" viewBox="0 0 960 710" role="img" aria-labelledby="title desc">
+  <title id="title">라우팅 엔진의 준비 자료, 요청 입력, 응답 출력</title>
+  <desc id="desc">도로망과 도로별 통행시간을 미리 준비합니다. 하남시청과 미사역의 좌표로 경로를 요청하면, 라우팅 엔진이 좌표를 도로망에 연결하고 다익스트라 등의 알고리즘으로 경로를 탐색한 뒤 결과를 정리합니다. 응답에는 통행시간, 거리, 경로 좌표가 들어 있습니다. 시뮬레이터는 이 결과로 차량을 선택하고 운행 일정을 계산합니다. 그림의 필드와 좌표 순서는 이 책의 Dtumos.route 기준입니다.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#64748b"/>
+    </marker>
+  </defs>
+  <rect width="960" height="710" rx="12" fill="#ffffff"/>
+
+  <g font-family="Noto Sans CJK KR, Apple SD Gothic Neo, Malgun Gothic, sans-serif" fill="#0f172a">
+    <!-- 도로망과 비용은 요청마다 좌표와 함께 보내는 값이 아니라 미리 준비하는 자료입니다. -->
+    <rect x="310" y="20" width="340" height="158" rx="12" fill="#f1f5f9" stroke="#94a3b8" stroke-width="1.5"/>
+    <text x="480" y="53" text-anchor="middle" font-size="23" font-weight="700">미리 준비하는 자료</text>
+    <text x="480" y="87" text-anchor="middle" font-size="20">도로망과 통행 가능한 방향</text>
+    <text x="480" y="118" text-anchor="middle" font-size="20">도로 길이와 사용할 속도</text>
+    <text x="480" y="149" text-anchor="middle" font-size="20" fill="#334155">→ 도로별 통행시간</text>
+    <path d="M 480 179 V 216" fill="none" stroke="#64748b" stroke-width="2.5" marker-end="url(#arrow)"/>
+
+    <!-- 필드 이름과 단위는 smartmob.client.Dtumos.route의 인터페이스를 따릅니다. -->
+    <rect x="24" y="226" width="244" height="318" rx="12" fill="#f8fafc" stroke="#94a3b8" stroke-width="1.5"/>
+    <text x="46" y="263" font-size="24" font-weight="700">요청 입력</text>
+    <text x="46" y="302" font-size="21">city: hanam</text>
+    <text x="46" y="350" font-size="20" font-weight="600">origin · 하남시청</text>
+    <text x="46" y="379" font-size="18" fill="#334155">(37.5393, 127.2148)</text>
+    <text x="46" y="427" font-size="20" font-weight="600">destination · 미사역</text>
+    <text x="46" y="456" font-size="18" fill="#334155">(37.5606, 127.1930)</text>
+    <text x="46" y="517" font-size="18" fill="#475569">좌표 순서: (위도, 경도)</text>
+    <path d="M 273 390 H 302" fill="none" stroke="#64748b" stroke-width="2.5" marker-end="url(#arrow)"/>
+
+    <!-- 알고리즘을 엔진 상자 안에 배치해 소프트웨어와 탐색 절차의 관계를 나타냅니다. -->
+    <rect x="310" y="226" width="340" height="318" rx="12" fill="#eff6ff" stroke="#3b82f6" stroke-width="2"/>
+    <text x="480" y="263" text-anchor="middle" font-size="25" font-weight="700">라우팅 엔진</text>
+    <text x="480" y="292" text-anchor="middle" font-size="18" fill="#334155">요청을 처리하는 소프트웨어</text>
+    <rect x="330" y="312" width="300" height="51" rx="8" fill="#ffffff" stroke="#cbd5e1"/>
+    <text x="348" y="345" font-size="20">1. 좌표를 도로망에 연결</text>
+    <path d="M 480 365 V 382" fill="none" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)"/>
+    <rect x="330" y="387" width="300" height="78" rx="8" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.5"/>
+    <text x="348" y="416" font-size="20" font-weight="700">2. 최단경로 탐색</text>
+    <text x="348" y="446" font-size="18" fill="#1e40af">다익스트라 등의 알고리즘 사용</text>
+    <path d="M 480 467 V 484" fill="none" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)"/>
+    <rect x="330" y="489" width="300" height="39" rx="8" fill="#ffffff" stroke="#cbd5e1"/>
+    <text x="348" y="516" font-size="20">3. 경로와 통행시간 정리</text>
+    <path d="M 656 390 H 694" fill="none" stroke="#64748b" stroke-width="2.5" marker-end="url(#arrow)"/>
+
+    <rect x="704" y="226" width="232" height="318" rx="12" fill="#f0fdf4" stroke="#86a99a" stroke-width="1.5"/>
+    <text x="726" y="263" font-size="24" font-weight="700">응답 출력</text>
+    <text x="726" y="308" font-size="21" font-weight="600">duration</text>
+    <text x="726" y="337" font-size="19" fill="#334155">통행시간 (초)</text>
+    <text x="726" y="385" font-size="21" font-weight="600">distance</text>
+    <text x="726" y="414" font-size="19" fill="#334155">거리 (미터)</text>
+    <text x="726" y="462" font-size="21" font-weight="600">route</text>
+    <text x="726" y="491" font-size="19" fill="#334155">경로 좌표 목록</text>
+    <text x="726" y="518" font-size="18" fill="#475569">각 좌표: [경도, 위도]</text>
+
+    <!-- 배차와 운행 일정 갱신은 응답을 받은 시뮬레이터가 수행합니다. -->
+    <path d="M 820 546 V 599" fill="none" stroke="#64748b" stroke-width="2.5" marker-end="url(#arrow)"/>
+    <rect x="24" y="606" width="912" height="82" rx="12" fill="#f8fafc" stroke="#94a3b8" stroke-width="1.5"/>
+    <text x="46" y="639" font-size="22" font-weight="700">시뮬레이터에서 결과 사용</text>
+    <text x="46" y="671" font-size="20" fill="#334155">차량 선택 · 도착시각과 다음 배차 가능 시각 계산 · 이동 경로 표시</text>
+  </g>
+</svg>

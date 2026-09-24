@@ -15,7 +15,7 @@
 같은 정류장에서 같은 노선을 타도 몇 시에 도착했느냐에 따라 다음 차까지 기다리는 시간이
 달라집니다. 그래서 그래프가 아니라 **시간표를 훑는** 방식이 자연스럽습니다.
 
-RAPTOR 는 "환승 k번 이하로 갈 수 있는 가장 이른 도착시각"을 k=0,1,2,… 로 한 라운드씩
+RAPTOR 는 "탑승 k번 이하로 갈 수 있는 가장 이른 도착시각"을 k=0,1,2,… 로 한 라운드씩
 넓혀 갑니다. 라운드마다 두 가지를 합니다.
 
 1. 직전 라운드에서 개선된 정류장을 지나는 노선을 훑어 타고 내립니다
@@ -176,8 +176,8 @@ class TransitData:
     def _build_transfers(self, max_m: float, speed: float) -> list[list[tuple[int, int]]]:
         """가까운 정류장 사이를 도보 환승으로 잇습니다.
 
-        GTFS 에 `transfers.txt` 가 없으면(한국 피드는 대부분 없습니다) 이렇게 만듭니다.
-        직선거리에 보정계수를 곱한 값이라 실제 도보 경로보다 낙관적입니다.
+        실습 피드에는 `transfers.txt`가 없어 좌표로 연결을 근사합니다.
+        직선거리에 보정계수를 곱한 뒤 거리 상한을 적용합니다. 보행 가능 여부는 확인하지 않습니다.
         """
         tree = self._kdtree()
         deg = max_m / 111_000 * DETOUR_FACTOR   # 위경도 1도 ≈ 111km
@@ -273,12 +273,13 @@ class RaptorResult:
     parent: dict[tuple[int, int], tuple]    # (라운드, 정류장) → 어떻게 왔는가
     departure: int
     n_rounds: int
+    steps: list[dict] = field(default_factory=list)
 
     def arrival(self, stop: int) -> float:
         return self.best[stop]
 
     def transfers_to(self, stop: int) -> int | None:
-        """그 정류장에 최선으로 도착한 라운드 = 탄 횟수."""
+        """최선 도착을 처음 얻은 라운드에서 환승 횟수를 계산합니다."""
         for k, row in enumerate(self.rounds):
             if row[stop] == self.best[stop] < INF:
                 return max(k - 1, 0)
@@ -290,15 +291,25 @@ def raptor(
     origins: Iterable[tuple[int, int]],
     departure_secs: int,
     max_rounds: int = MAX_ROUNDS,
+    *,
+    record_steps: bool = False,
 ) -> RaptorResult:
     """출발 정류장 목록에서 시작해 모든 정류장까지의 가장 이른 도착시각을 구합니다.
 
     ``origins`` 는 ``(정류장 인덱스, 접근 도보 초)`` 목록입니다.
+    ``record_steps=True`` 는 작은 시간표의 계산 과정을 시각화할 때 씁니다.
+    단계마다 도착시각을 복사하므로 큰 피드에서는 기본값을 사용합니다.
     """
     n = data.n_stops
     best = [INF] * n
     rounds = [[INF] * n]
     parent: dict[tuple[int, int], tuple] = {}
+    steps: list[dict] = []
+
+    def record(kind, k, cur, marked, **detail):
+        if record_steps:
+            steps.append(dict(kind=kind, round=k, times=list(cur),
+                              marked=sorted(marked), **detail))
 
     marked = set()
     for stop, walk in origins:
@@ -308,6 +319,8 @@ def raptor(
             best[stop] = min(best[stop], t)
             parent[(0, stop)] = ("access", walk)
             marked.add(stop)
+
+    record("access", 0, rounds[0], marked)
 
     for k in range(1, max_rounds + 1):
         prev, cur = rounds[k - 1], list(rounds[k - 1])
@@ -321,9 +334,13 @@ def raptor(
                 if pattern_idx not in queue or pos < queue[pattern_idx]:
                     queue[pattern_idx] = pos
 
+        record("round", k, cur, marked, queue=list(queue))
+
         # 2단계 — 패턴을 훑으며 타고 내립니다.
         for pattern_idx, start_pos in queue.items():
             p = data.patterns[pattern_idx]
+            record("pattern", k, cur, new_marked, pattern=pattern_idx,
+                   stop=p.stops[start_pos])
             trip: int | None = None
             board_pos = 0
             for pos in range(start_pos, len(p.stops)):
@@ -336,6 +353,9 @@ def raptor(
                         cur[stop] = arrive
                         parent[(k, stop)] = ("ride", pattern_idx, trip, board_pos, pos)
                         new_marked.add(stop)
+                        record("ride", k, cur, new_marked, pattern=pattern_idx,
+                               trip=trip, stop=stop, origin=p.stops[board_pos],
+                               arrival=arrive)
 
                 # 여기서 더 이른 차를 탈 수 있으면 갈아탑니다.
                 ready = prev[stop]
@@ -345,6 +365,12 @@ def raptor(
                         trip is None or p.departures[candidate][pos] < p.departures[trip][pos]
                     ):
                         trip, board_pos = candidate, pos
+                        record("board", k, cur, new_marked, pattern=pattern_idx,
+                               trip=trip, stop=stop, ready=ready,
+                               departure=p.departures[trip][pos])
+                    elif candidate is None:
+                        record("miss", k, cur, new_marked, pattern=pattern_idx,
+                               stop=stop, ready=ready)
 
         # 3단계 — 내린 곳에서 걸어갑니다. 한 라운드에 도보는 한 번만 합니다.
         for stop in list(new_marked):
@@ -356,12 +382,16 @@ def raptor(
                     cur[other] = arrive
                     parent[(k, other)] = ("walk", stop, seconds)
                     new_marked.add(other)
+                    record("walk", k, cur, new_marked, origin=stop,
+                           stop=other, seconds=seconds, arrival=arrive)
+
+        record("end", k, cur, new_marked)
 
         if not new_marked:
-            return RaptorResult(best, rounds, parent, departure_secs, k)
+            return RaptorResult(best, rounds, parent, departure_secs, k, steps)
         marked = new_marked
 
-    return RaptorResult(best, rounds, parent, departure_secs, max_rounds)
+    return RaptorResult(best, rounds, parent, departure_secs, max_rounds, steps)
 
 
 def journey(data: TransitData, result: RaptorResult, target: int) -> list[dict]:

@@ -22,11 +22,11 @@ kernelspec:
 
 | 방식 | 언제 | 준비 |
 |---|---|---|
-| 내장 엔진 | 서버 없이 복습·실험 | 없음. 서버에 못 붙으면 자동 (`SMARTMOB_OFFLINE=1` 로 강제) |
-| 공용 서버 | 수업 중, 무거운 시뮬레이션 | 교수자가 띄움. 학생은 주소만 |
-| 로컬 Docker | 엔진 코드를 직접 열어 볼 때 | 사전 빌드 이미지 + 도시 데이터 |
+| 내장 엔진 (기본값) | 0~9장 전체, 서버 없이 복습·실험 | 없음 |
+| 공용 서버 | 수업 중, 무거운 시뮬레이션 | 교수자가 띄움. 학생은 `SMARTMOB_DTUMOS_URL` 만 설정 |
+| 로컬 Docker | 엔진 코드를 직접 열어 볼 때 | 사전 빌드 이미지 + 도시 데이터. 주소는 `http://localhost:8000` |
 
-`smartmob` 은 셋을 환경변수 하나로 전환합니다.
+기본값은 내장 엔진입니다. `SMARTMOB_DTUMOS_URL` 을 설정하지 않으면 `Dtumos()` 는 서버를 찾지 않습니다. 접속 시도 자체를 하지 않으므로, 다른 프로그램이 8000번 포트를 쓰고 있어도 그쪽으로 요청이 가지 않습니다. 서버를 쓰려면 주소를 설정하거나 `Dtumos(mode="live")` 로 명시합니다.
 
 ```{code-cell} python
 :tags: [skip-execution]
@@ -215,7 +215,7 @@ SMARTMOB_DTUMOS_URL=http://localhost:8000 python tools/check_fixture_drift.py
 
 ## 정리
 
-- 서버 없이 읽을 때는 `SMARTMOB_OFFLINE=1`, 서버가 있으면 `SMARTMOB_DTUMOS_URL` 하나만 설정합니다
+- 서버 없이 읽을 때는 아무것도 설정하지 않습니다. 서버를 쓸 때만 `SMARTMOB_DTUMOS_URL` 을 설정하고, 주소가 설정된 채로 잠시 꺼 두려면 `SMARTMOB_OFFLINE=1` 을 씁니다
 - `docker compose up --build` 는 20분이 걸립니다. 사전 빌드 이미지를 씁니다
 - 이미지에 도시 데이터가 없습니다. `/app/data/cities` 를 마운트해야 합니다
 - API 는 프로세스당 시뮬레이션 하나만 돌립니다. 팀마다 컨테이너를 따로 띄웁니다

@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1140 240" role="img" aria-labelledby="title desc">
+<title id="title">GTFS를 만드는 쪽과 사용하는 쪽</title>
+<desc id="desc">교통기관이 정류장과 시간표를 GTFS ZIP으로 제공하면 Google 지도와 경로 안내 앱, 분석 코드가 같은 형식으로 읽습니다.</desc>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#507b9f"/></marker></defs>
+<style>text{font-family:"Noto Sans KR","Apple SD Gothic Neo",sans-serif;fill:#20344d;font-size:20px}.head{font-size:24px;font-weight:700}.small{font-size:17px;fill:#53687f}.box{fill:#f1f6fb;stroke:#a9bed3;stroke-width:1.5}.link{fill:none;stroke:#507b9f;stroke-width:2.5;marker-end:url(#arrow)}</style>
+<rect width="1140" height="240" fill="white"/>
+<rect class="box" x="20" y="35" width="270" height="145" rx="12"/>
+<text class="head" x="42" y="76">교통기관</text><text x="42" y="111">정류장 · 노선 · 시간표</text><text class="small" x="42" y="149">운행 정보를 작성하고 제공</text>
+<path class="link" d="M290 105H390"/><text class="small" x="315" y="85">작성</text>
+<rect class="box" x="400" y="35" width="295" height="145" rx="12"/>
+<text class="head" x="422" y="76">GTFS Schedule</text><text x="422" y="111">규격에 맞춘 TXT → ZIP</text><text class="small" x="422" y="149">파일 · 컬럼 · 식별자 연결 규칙</text>
+<path class="link" d="M695 105H800"/><text class="small" x="720" y="85">읽기</text>
+<rect class="box" x="810" y="35" width="310" height="145" rx="12"/>
+<text class="head" x="832" y="76">지도 서비스 · 분석 코드</text><text x="832" y="111">Google 지도 · 경로 안내</text><text class="small" x="832" y="149">교재의 시간표 조회 · 경로 탐색</text>
+<text class="small" x="20" y="220">운행 정보를 공통 형식으로 제공하면 여러 프로그램이 같은 자료를 읽을 수 있습니다.</text>
+</svg>

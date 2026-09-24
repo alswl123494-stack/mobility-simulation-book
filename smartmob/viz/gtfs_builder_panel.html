@@ -1,0 +1,49 @@
+<style>
+.builder-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin:14px 0}.builder-fields label{display:block;font-size:13px}.builder-fields input{display:block;width:100%;margin-top:5px}.builder-input,#builder input[type=text],#builder input[type=number],#builder input[type=date],#builder input[type=search]{border:1px solid var(--line);background:white;border-radius:7px;padding:7px 9px;min-width:0;max-width:100%;font:inherit}.builder-search{width:100%;margin:10px 0}.builder-results{max-height:160px;overflow:auto;display:grid;gap:5px;margin:0 0 12px}.builder-results button{font-size:12px;text-align:left;padding:7px 10px;font-weight:400}.builder-results button small{display:block}.builder-days{display:flex;gap:12px;flex-wrap:wrap}.builder-days label{font-size:13px;gap:4px;width:auto}.builder-days input{accent-color:var(--teal)}.builder-stops{padding:0;list-style:none;margin:12px 0;max-height:420px;overflow:auto}.builder-stops li{padding:12px 0;border-top:1px solid var(--line)}.builder-stop-head{display:flex;gap:8px;align-items:center}.builder-stop-head b{font-size:17px;color:var(--teal)}.builder-stop-head input{flex:1;width:100px}.builder-stop-info{font-size:11px;color:var(--muted);overflow-wrap:anywhere}.builder-stop-controls{display:flex;gap:5px;flex-wrap:wrap;align-items:center;margin-top:6px}.builder-stop-controls button{font-size:12px;padding:3px 9px}.builder-stop-controls label{font-size:12px;font-weight:400;display:flex;width:auto}.builder-stop-controls input{width:68px}.builder-error{background:#fff0e7;border-left:3px solid var(--orange);padding:12px;margin:12px 0;color:#843e18}.builder-counts{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px;margin:16px 0}.builder-counts button{font-size:11px;padding:9px 4px;font-weight:400}.builder-counts b{font-size:20px;display:block}.builder-counts .selected{background:var(--ink);color:white}.builder-file{max-height:330px;overflow:auto}#builder .query-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}#builder .query-grid label{display:block;font-size:13px}#builder .query-grid select,#builder .query-grid input{display:block;width:100%;margin-top:6px}.builder-note{font-size:12px;min-height:24px;margin-top:8px}.builder-key{color:var(--teal);background:#f0f7f5}.builder-source{max-height:360px;overflow:auto;background:#132c3c;color:#e2eef5;border-radius:9px;padding:16px;font-size:12px;line-height:1.7}.builder-source code{background:none;color:inherit;white-space:pre;padding:0;overflow-wrap:normal}.builder-ids{overflow-wrap:anywhere}.builder-import-label{display:inline-block;cursor:pointer;font-weight:600;border:1px solid var(--line);border-radius:8px;padding:8px 12px;background:white}.builder-import-label:focus-within{outline:3px solid var(--orange)}.visually-hidden-input{position:absolute;width:1px;height:1px;opacity:0}.builder-rule{font-size:13px;margin:10px 0}#builder-ride-result{min-height:85px}.builder-legend{display:flex;gap:12px;font-size:12px;flex-wrap:wrap;margin-top:10px}@media(max-width:700px){.builder-counts{grid-template-columns:repeat(3,minmax(0,1fr))}#builder .query-grid{grid-template-columns:1fr}.builder-stop-controls label{width:auto}}@media(max-width:450px){.builder-fields{grid-template-columns:1fr}.builder-stop-controls label{width:100%}}
+</style>
+<section id="builder" data-tab hidden>
+<div class="hint"><strong>하남시청–미사역 버스 노선 설계</strong><br>정류장 방문 순서와 구간별 주행시간, 첫차 출발시각과 배차간격을 설정합니다. 기본 예제는 하남시청과 미사역을 연결하는 가상의 편도 노선입니다. 정류장 위치는 실습 자료를 사용하며, 시간표는 실습을 위해 설정한 값입니다.</div>
+<div class="toolbar"><button id="builder-example">예제 불러오기</button><button id="builder-clear">정류장 목록 초기화</button><button id="builder-undo">실행 취소</button><button id="builder-save-design">설계 저장 (JSON)</button><label class="builder-import-label">설계 불러오기 (JSON)<input id="builder-load-design" type="file" accept=".json,application/json" class="visually-hidden-input"></label><span id="builder-saved" class="small muted"></span></div>
+<div class="grid builder-layout">
+<div class="card"><h2>1. 정류장 선택과 배치</h2>
+<label class="small">정류장 추가 방식 <select id="builder-map-mode"><option value="existing">기존 정류장 선택</option><option value="new">도로 위에 정류장 신설</option></select></label>
+<input id="builder-search" class="builder-search" type="search" placeholder="정류장 이름 또는 stop_id 검색" aria-label="추가할 정류장 검색"><div id="builder-results" class="builder-results"></div>
+<p class="small muted" style="margin:8px 0">파란 점을 클릭하면 기존 정류장을 선택합니다. 정류장을 신설할 때는 클릭한 지점에서 40 m 이내의 가장 가까운 일반 도로에 좌표를 맞춥니다. 이 작업을 스냅(snapping)이라고 합니다.</p>
+<div class="builder-map-shell"><div id="builder-map" role="region" aria-label="도로망과 기존 정류장을 표시한 노선 설계 지도"></div><div class="map-tools"><button id="builder-in" aria-label="설계 지도 확대">＋</button><button id="builder-out" aria-label="설계 지도 축소">−</button><button id="builder-fit">전체 노선 보기</button></div></div>
+<p id="builder-map-status" class="builder-map-status" role="status"></p>
+<div class="builder-legend"><span><i class="dot" style="background:#446b83"></i>기존 정류장</span><span><i class="dot" style="background:var(--teal)"></i>선택한 정류장</span><span><i class="dot" style="background:var(--orange)"></i>새 정류장</span><span><i class="builder-road-key"></i>실습 도로</span><span><i class="builder-route-key"></i>방문 순서</span></div>
+<p class="map-caption">점선은 선택한 정류장을 방문 순서대로 연결한 선입니다. 실제 도로를 따르는 주행 경로는 계산하지 않으며, 구간별 주행시간은 직접 입력합니다. 기존 정류장은 자료에 기록된 좌표를 유지합니다.</p>
+<details style="margin-top:12px"><summary>이름과 좌표로 새 정류장 추가</summary><div class="builder-fields"><label>정류장 이름<input id="builder-new-name" type="text" value="새 정류장" maxlength="100"></label><label>위도<input id="builder-new-lat" type="number" value="37.55" min="-90" max="90" step="0.000001"></label><label>경도<input id="builder-new-lon" type="number" value="127.205" min="-180" max="180" step="0.000001"></label></div><button id="builder-add-point">좌표로 추가</button></details>
+<p id="builder-map-message" class="builder-note" role="status"></p>
+</div>
+<div class="card"><h2>2. 운행 시간표 설정</h2>
+<p class="small muted">‘구간 주행시간’은 이전 정류장의 출발부터 현재 정류장의 도착까지 걸리는 시간입니다. 중간 정류장의 정차시간은 별도로 더합니다. 정류장 순서를 바꾸면 구간 주행시간도 다시 확인합니다.</p>
+<ol id="builder-stops" class="builder-stops"></ol>
+<div class="builder-fields">
+<label>노선 이름<input id="builder-name" type="text" value="실습01" maxlength="60"></label>
+<label>중간 정류장 정차시간 (초)<input id="builder-dwell" type="number" value="30" min="0" max="600" step="1"></label>
+<label>첫차 출발시각<input id="builder-first" type="text" value="07:00" placeholder="07:00" inputmode="numeric"></label>
+<label>출발 마감시각<input id="builder-last" type="text" value="09:00" placeholder="24:30" inputmode="numeric"></label>
+<label>배차간격 (분)<input id="builder-headway" type="number" value="20" min="1" max="180" step="1"></label>
+<label>운행 시작일<input id="builder-start-date" type="date" value="2026-01-01" min="2000-01-01" max="2100-12-31"></label>
+<label>운행 종료일<input id="builder-end-date" type="date" value="2026-12-31" min="2000-01-01" max="2100-12-31"></label>
+</div>
+<p class="small muted">첫 정류장에서 첫차 출발시각부터 배차간격마다 출발하는 운행을 생성합니다. 출발 마감시각을 넘는 운행은 생성하지 않습니다.</p>
+<fieldset style="border:0;padding:0;margin:12px 0"><legend class="small">운행 요일</legend><div id="builder-days" class="builder-days"></div></fieldset>
+<p class="small muted">운행일 다음 날 00:20은 <code>24:20</code>으로 입력합니다. 이 실습에서는 첫 정류장과 마지막 정류장의 도착시각과 출발시각을 동일하게 설정합니다. 왕복 시간표와 필요 차량 대수는 계산하지 않습니다.</p>
+</div></div>
+<div id="builder-error" class="builder-error" role="alert" hidden></div>
+<div id="builder-output">
+<div class="card wide-card"><h2>3. GTFS 파일 생성과 확인</h2><p id="builder-summary"></p><div id="builder-counts" class="builder-counts"></div>
+<div class="toolbar"><label>조회할 운행 <select id="builder-trip"></select></label><button id="builder-download" class="primary">GTFS ZIP 내려받기</button><button id="builder-download-table">선택한 TXT 파일 내려받기</button></div>
+<div class="toolbar"><button id="builder-show-table" aria-pressed="true">표로 보기</button><button id="builder-show-raw" aria-pressed="false">TXT 원문 보기</button></div>
+<p id="builder-table-explanation" class="builder-rule"></p><div id="builder-table-wrap" class="table-wrap builder-file"><table><thead id="builder-table-head"></thead><tbody id="builder-table-body"></tbody></table></div>
+<div id="builder-source-wrap" hidden><pre class="builder-source"><code id="builder-source"></code></pre><p class="small muted">쉼표로 컬럼을 구분하는 실제 CSV 원문입니다. 이름에 쉼표나 큰따옴표가 있으면 따옴표로 감쌉니다. 이 원문이 내려받는 TXT에 그대로 들어갑니다.</p></div>
+<p class="small muted" style="margin-top:10px">새 GTFS의 버스 코드는 국제 명세의 <code>route_type=3</code>입니다. 앞서 읽은 하남 실습 자료의 버스 코드 <code>0</code>과 구분합니다. ZIP에는 운영기관을 적는 <code>agency.txt</code>도 함께 넣습니다. 기관 이름과 URL은 수업용 가상 값입니다.</p>
+</div>
+<div class="card wide-card"><h2>4. 승차 가능한 운행 조회</h2><p class="small muted">설정한 운행 기간과 요일에 해당하는 날을 가정합니다. 승객이 정류장에 도착한 시각 이후에 출발하는 첫 운행을 찾습니다. 정류장까지의 도보와 다른 노선으로의 환승은 계산하지 않습니다.</p>
+<div class="query-grid" style="margin-top:14px"><label>승차 정류장<select id="builder-board"></select></label><label>하차 정류장<select id="builder-alight"></select></label><label>승객의 정류장 도착시각<input id="builder-ready" type="text" value="08:03" inputmode="numeric"></label></div>
+<div id="builder-ride-result" class="hint" aria-live="polite"></div><p class="small muted">배차간격을 20분에서 10분으로 바꾸어 봅니다. 정류장과 주행·정차시간을 유지한 상태에서 대기시간과 도착시각이 어떻게 달라지는지 확인합니다. 차내시간은 승차부터 하차까지의 시간으로, 중간 정류장에서의 정차시간을 포함합니다.</p>
+</div></div>
+<div class="card wide-card"><h2>신규 노선의 효과 비교</h2><p>6장을 마친 뒤 신규 노선 통합 과제에서 ZIP을 다시 읽습니다. 표 관계를 검사하고, 제공된 RAPTOR로 하남 노선 추가 전후의 도착시각을 비교합니다.</p><p class="small muted">설계를 나중에 계속하려면 JSON도 저장합니다. 날짜·요일은 ZIP에 보존되지만 6장의 제공 탐색은 질의 날짜를 자동으로 선택하지 않으므로 신규 노선의 운행일 조건에서 비교합니다.</p></div>
+</section>

@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1140 640" role="img" aria-labelledby="title desc">
+<title id="title">GTFS의 운영기관·노선·운행·방문·정류장·운행일 연결</title>
+<desc id="desc">agency에서 routes로, routes와 두 운행일 표에서 trips로 연결됩니다. trips와 stops는 stop_times에 연결됩니다. 운행일 표는 표현 방식에 따라 선택하거나 함께 사용합니다.</desc>
+<style>text{font-family:"Noto Sans KR","Apple SD Gothic Neo",sans-serif;fill:#20344d;font-size:18px}.title{font-size:25px;font-weight:700}.head{font-size:20px;font-weight:700}.small{font-size:16px;fill:#53687f}.box{fill:#f1f6fb;stroke:#a9bed3;stroke-width:1.5}.optional{fill:#fff8ec;stroke:#d3b17c;stroke-width:1.5}.arrow{fill:none;stroke:#53799e;stroke-width:2;marker-end:url(#arrow)}</style>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#53799e"/></marker></defs>
+<rect width="1140" height="640" fill="white"/>
+<text x="24" y="38" class="title">어느 기관의 어떤 노선이, 언제 어느 정류장을 방문하나요?</text>
+<rect class="box" x="24" y="80" width="240" height="105" rx="12"/>
+<text class="head" x="42" y="111">agency · 운영기관</text><text class="small" x="42" y="140">agency_id: EDU</text><text class="small" x="42" y="166">가상 기관 · Asia/Seoul</text>
+<rect class="box" x="350" y="80" width="240" height="105" rx="12"/>
+<text class="head" x="368" y="111">routes · 노선</text><text class="small" x="368" y="140">route_id: L1 · 1호선</text><text class="small" x="368" y="166">agency_id: EDU</text>
+<path class="arrow" d="M264 132H350"/><text class="small" x="268" y="115">agency_id</text>
+<rect class="box" x="630" y="220" width="200" height="170" rx="12"/>
+<text class="head" x="648" y="254">trips · 운행</text><text class="small" x="648" y="289">trip_id: L1-1</text><text class="small" x="648" y="319">route_id: L1</text><text class="small" x="648" y="349">service_id: S</text>
+<path class="arrow" d="M470 185V250H630"/><text class="small" x="495" y="236">route_id</text>
+<rect class="box" x="24" y="265" width="280" height="135" rx="12"/>
+<text class="head" x="42" y="299">calendar · 요일 규칙</text><text class="small" x="42" y="331">service_id: S</text><text class="small" x="42" y="359">요일별 운행 여부</text><text class="small" x="42" y="385">적용 시작일 · 종료일</text>
+<path class="arrow" d="M304 330H630"/><text class="small" x="415" y="315">service_id</text>
+<rect class="optional" x="24" y="460" width="280" height="120" rx="12"/>
+<text class="head" x="42" y="493">calendar_dates · 날짜</text><text class="small" x="42" y="524">service_id · date</text><text class="small" x="42" y="553">exception_type: 추가 / 제외</text>
+<path class="arrow" d="M304 520H550V370H630"/><text class="small" x="365" y="507">service_id</text>
+<rect class="box" x="900" y="220" width="216" height="195" rx="12"/>
+<text class="head" x="918" y="254">stop_times · 방문</text><text class="small" x="918" y="290">L1-1 · A · 1 · 08:00</text><text class="small" x="918" y="321">L1-1 · B · 2 · 08:10</text><text class="small" x="918" y="352">L1-1 · C · 3 · 08:20</text><text class="small" x="918" y="393">운행 · 정류장 · 순서 · 시각</text>
+<path class="arrow" d="M830 278H900"/><text class="small" x="835" y="264">trip_id</text>
+<rect class="box" x="900" y="475" width="216" height="112" rx="12"/>
+<text class="head" x="918" y="508">stops · 정류장</text><text class="small" x="918" y="540">stop_id: A · 이름: A역</text><text class="small" x="918" y="567">위도 · 경도</text>
+<path class="arrow" d="M1008 475V415"/><text class="small" x="1020" y="452">stop_id</text>
+<text class="small" x="24" y="617">운행일 표는 표현 방식에 따라 선택하거나 함께 씁니다. 기본 실습은 calendar만 사용합니다.</text>
+</svg>

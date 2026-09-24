@@ -1,7 +1,7 @@
 """GTFS 읽기.
 
-GTFS 는 대중교통 시간표의 사실상 표준입니다. 파일 여덟 개짜리 zip 또는 폴더인데,
-이 책에서 쓰는 것은 다섯 개입니다.
+GTFS는 대중교통 시간표를 표들의 묶음으로 저장합니다.
+이 책에서 읽는 표는 다섯 개입니다.
 
     stops.txt       정류장 — stop_id, stop_name, stop_lat, stop_lon
     routes.txt      노선   — route_id, route_short_name, route_type
@@ -14,8 +14,9 @@ GTFS 는 대중교통 시간표의 사실상 표준입니다. 파일 여덟 개�
 1. **시각이 24시를 넘습니다.** ``"25:30:00"`` 은 다음 날 새벽 1시 30분이고,
    같은 운행일에 속합니다. ``datetime`` 으로 파싱하면 터집니다.
    :func:`parse_gtfs_time` 을 씁니다.
-2. **한국 GTFS 의 `route_type` 은 국제 표준과 다릅니다.** TAGO 코드입니다.
-   :data:`KOREAN_ROUTE_TYPE` 을 보세요.
+2. **실습 자료의 `route_type`은 GTFS 명세와 다릅니다.**
+   :data:`KOREAN_ROUTE_TYPE`은 이 파일을 위한 코드표입니다. 다른 피드는 공급자의
+   코드표를 확인합니다.
 """
 
 from __future__ import annotations

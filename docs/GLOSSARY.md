@@ -17,6 +17,9 @@
 | ride-hailing | 호출형 택시 | 호출형 택시(ride-hailing) | 라이드헤일링 |
 | DRT | DRT | 수요응답형 교통(DRT, demand-responsive transit) | 수요응답버스와 혼용 |
 | headway | 배차간격 | 배차간격(headway) | 헤드웨이 |
+| inter-stop running time | 구간 주행시간 | 이전 정류장 출발부터 다음 정류장 도착까지 걸리는 시간 | 정차시간과 혼용 |
+| dwell time | 정차시간 | 정차시간(dwell time, 정류장 도착부터 출발까지 걸리는 시간) | 구간 주행시간과 혼용 |
+| in-vehicle time | 차내시간 | 차내시간(in-vehicle time, 승차부터 하차까지 차량 안에서 보낸 시간) | 구간 주행시간과 혼용 |
 | occupancy | 재차 인원 | 재차 인원(occupancy) | 점유율 |
 | detour ratio | 우회율 | 우회율(detour ratio) | 디투어 |
 
@@ -27,6 +30,8 @@
 | O-D | O-D | 출발지-목적지(O-D) | 기종점, OD/O-D 혼용 |
 | demand | 수요 | 수요(demand) | 디맨드 |
 | GTFS | GTFS | GTFS(General Transit Feed Specification) | 지티에프에스 |
+| GTFS trip | 운행 | 운행(trip, 시간표의 출발편 하나) | 승객 통행과 혼용 |
+| service day | 운행일 | 운행일(service day) | 자정 이후의 달력 날짜와 혼용 |
 | smartcard data | 스마트카드 데이터 | 스마트카드 데이터(교통카드 이용 이력) | 교통카드 데이터와 혼용 |
 | boundary | 경계 | 경계(boundary) | 바운더리 |
 | parquet / GeoPackage | parquet, GeoPackage | — | 파케이 |
@@ -39,12 +44,21 @@
 | adjacency list | 인접 리스트 | 인접 리스트(adjacency list) | 애드제이션시 |
 | shortest path | 최단경로 | 최단경로(shortest path) | 최적경로 |
 | tentative travel time | 잠정 시간 | 현재까지 발견한 경로 중 가장 짧은 통행시간 | 확정된 최소 통행시간과 혼용 |
+| relaxation | 완화 | 완화(relaxation) | 확정과 혼용 |
+| min-heap | 최소 힙 | 최소 힙(min-heap) | 정렬된 목록과 혼용 |
+| binary search | 이분 탐색 | 이분 탐색(binary search) | 정렬되지 않은 목록에 적용 |
 | admissibility | 허용 가능성 | 허용 가능성(admissibility) | 일관성과 혼용 |
 | consistency | 일관성 | 일관성(consistency) | 허용 가능성과 혼용 |
 | routing | 라우팅 | 경로 탐색(routing) | — |
-| snapping | 스냅 | 가장 가까운 노드에 붙이기(snapping) | 스냅핑 |
+| snapping | 스냅 | 스냅(snapping, 좌표를 가까운 노드나 도로 선에 맞추는 작업) | 스냅핑 |
 | free-flow speed | 자유류 속도 | 자유류 속도(free-flow speed) | 프리플로우 |
+| time-dependent shortest path | 시간의존 최단경로 | 시간의존 최단경로(time-dependent shortest path) | 시간대별 고정 비용 탐색과 혼용 |
+| CH | 축약 계층 | 축약 계층(CH, Contraction Hierarchies) | MLD와 혼용 |
+| MLD | 다단계 다익스트라 | 다단계 다익스트라(MLD, Multi-Level Dijkstra) | 축약 계층과 혼용 |
 | RAPTOR | RAPTOR | RAPTOR(Round-bAsed Public Transit Optimized Router) | 랩터 |
+| pattern | 패턴 | 패턴(pattern, 같은 노선과 정류장 순서의 운행 묶음) | GTFS 노선과 혼용 |
+| time-expanded graph | 시간 확장 그래프 | 시간 확장 그래프(time-expanded graph) | 시간의존 비용과 혼용 |
+| RAPTOR round | 라운드 | 라운드 k: k번 이하로 탑승한 도착시각 | 환승 k회와 혼용 |
 | itinerary | 경로안 | 경로안(itinerary) | 이터너리 |
 | footpath / transfer | 도보 환승 | 도보 환승(footpath) | 풋패스 |
 | isochrone | 등시선 | 등시선(isochrone) | 아이소크론 |
@@ -77,4 +91,7 @@
 
 ## 소프트웨어 이름 (영문 그대로, 표기 고정)
 
-`OSMnx` · `NetworkX` · `GeoPandas` · `pandas` · `NumPy` · `SciPy` · `scikit-learn` · `LightGBM` · `pydeck` · `deck.gl` · `folium` · `Mapbox` · `OpenStreetMap`(약어는 OSM) · `SUMO` · `VISSIM` · `AIMSUN` · `MATSim` · `Docker` · `FastAPI` · `Jupyter Book` · `DTUMOS`
+`OSMnx` · `NetworkX` · `GeoPandas` · `pandas` · `NumPy` · `SciPy` ·
+`scikit-learn` · `LightGBM` · `pydeck` · `deck.gl` · `folium` · `Mapbox` ·
+`OpenStreetMap`(약어는 OSM) · `SUMO` · `VISSIM` · `AIMSUN` · `MATSim` ·
+`Docker` · `FastAPI` · `Jupyter Book` · `DTUMOS`

@@ -9,16 +9,26 @@
     sim = dt.run_simulation(city="hanam", fleet_size=80, num_passengers=1000)
     sim.record.head()
 
+서버는 선택 사항입니다
+--------------------
+기본값은 서버를 쓰지 않는 것입니다. ``Dtumos()`` 는 환경변수
+``SMARTMOB_DTUMOS_URL`` 이 설정되어 있을 때만 서버에 접속을 시도합니다.
+설정하지 않았다면 접속 시도조차 하지 않고 내장 엔진으로 돕니다.
+0장부터 9장까지는 서버 없이 그대로 돌아갑니다.
+
 동작 모드
 ---------
 ``auto``(기본)
-    ``GET /health`` 를 2초 안에 시도합니다. 붙으면 실서버, 안 붙으면 ``local``.
+    ``SMARTMOB_DTUMOS_URL`` 이 설정되어 있으면 ``GET /health`` 를 2초 안에
+    시도해서, 붙으면 ``live`` 안 붙으면 ``local`` 입니다.
+    설정하지 않았다면 확인 없이 ``local`` 입니다.
 ``live``
     반드시 실서버. 못 붙으면 :class:`DtumosUnavailable`.
+    주소를 설정하지 않았다면 기본값 ``http://localhost:8000`` 을 씁니다.
 ``local``
     서버 없이 돕니다. 녹화본(``data/fixtures/``)이 있는 요청은 그것을 돌려주고,
     없으면 내장 파이썬 엔진(:mod:`smartmob.local`)으로 그 자리에서 계산합니다.
-    ``SMARTMOB_OFFLINE=1`` 이면 이 모드입니다.
+    ``SMARTMOB_OFFLINE=1`` 이면 주소가 설정되어 있어도 이 모드입니다.
 ``fixture``
     반드시 녹화본. 녹화가 없으면 :class:`~smartmob.fixtures.FixtureMissing`.
     책을 빌드하는 CI 와 회귀 테스트가 씁니다.
@@ -33,7 +43,7 @@ from pathlib import Path
 from typing import Any, Iterable, Literal
 
 from smartmob import fixtures
-from smartmob.config import dtumos_url, offline
+from smartmob.config import dtumos_url, dtumos_url_configured, offline
 
 Mode = Literal["auto", "live", "local", "fixture"]
 
@@ -285,8 +295,14 @@ class Dtumos:
         self.base_url = (base_url or dtumos_url()).rstrip("/")
         self.timeout = timeout
         self.api_key = api_key
-        # 인자로 준 mode 가 환경변수보다 우선입니다. auto 일 때만 SMARTMOB_OFFLINE 을 봅니다.
-        self._mode: Mode = ("local" if offline() else "auto") if mode == "auto" else mode
+        # 인자로 준 mode 가 환경변수보다 우선입니다.
+        # auto 일 때만 SMARTMOB_OFFLINE 과 SMARTMOB_DTUMOS_URL 을 봅니다.
+        # 주소를 직접 준 경우(base_url 인자)는 서버를 쓰겠다는 뜻으로 봅니다.
+        if mode == "auto":
+            wants_server = base_url is not None or dtumos_url_configured()
+            self._mode: Mode = "auto" if (wants_server and not offline()) else "local"
+        else:
+            self._mode = mode
         self._resolved: Mode | None = self._mode if self._mode in ("fixture", "local") else None
 
     # -- 접속 ---------------------------------------------------------------- #
@@ -298,7 +314,7 @@ class Dtumos:
             self._resolved = "live" if self._probe() else "local"
             if self._resolved == "local":
                 print(
-                    f"[smartmob] 서버({self.base_url})가 없어 내장 파이썬 엔진으로 돌립니다. "
+                    f"[smartmob] 서버({self.base_url})에 붙지 못해 내장 파이썬 엔진으로 돌립니다. "
                     f"책의 기준 실험은 녹화된 DTUMOS 결과를 그대로 씁니다."
                 )
         return self._resolved

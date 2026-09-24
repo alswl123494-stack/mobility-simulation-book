@@ -1,0 +1,222 @@
+<script>
+// 편도 노선 설계와 CSV 생성. 같은 계산을 teaching/gtfs_builder.py에서도 실행합니다.
+const ROUTE_DAYS=['monday','tuesday','wednesday','thursday','friday','saturday','sunday'];
+const ROUTE_STORE='smartmob.gtfs.route.v1';
+const builderCatalog=DATA.builderStops||DATA.stops;
+const builderCatalogById=new Map(builderCatalog.map(s=>[s[0],s]));
+const builderFields={
+ 'builder-name':'route_name','builder-first':'first_departure','builder-last':'last_departure',
+ 'builder-headway':'headway_minutes','builder-dwell':'dwell_seconds',
+ 'builder-start-date':'start_date','builder-end-date':'end_date'
+};
+let builderDesign,builderHistory=[],builderTables=null,builderFile='stop_times',builderTrip=0,builderRaw=true;
+let builderPreviousCounts=null;
+function exampleDesign(){
+ const preferred=['BS_TAGO_GGB227000034','BS_TAGO_GGB227000506','BS_TAGO_GGB227000658'];
+ let stops=preferred.map(id=>builderCatalogById.get(id)).filter(Boolean);
+ if(stops.length<2)stops=builderCatalog.slice(0,3);
+ return {version:1,route_name:'실습01',first_departure:'07:00',last_departure:'09:00',
+  headway_minutes:20,dwell_seconds:30,start_date:'2026-01-01',end_date:'2026-12-31',weekdays:[0,1,2,3,4],
+  stops:stops.map((s,i)=>({id:s[0],name:s[1],lon:s[2],lat:s[3],travel_minutes:i===0?0:i===1?6:3,custom:false}))};
+}
+function routeTime(text){
+ if(typeof text!=='string'||!/^\d{2}:[0-5]\d(?::[0-5]\d)?$/.test(text))throw Error('시각은 HH:MM 또는 HH:MM:SS로 적습니다. 자정 이후는 24시 이상으로 씁니다.');
+ const [h,m,s=0]=text.split(':').map(Number);if(h>47)throw Error('실습 시각은 00:00부터 47:59:59까지입니다.');return h*3600+m*60+s;
+}
+function routeNumber(value,min,max,label,integer=false){
+ if(typeof value!=='number'||!Number.isFinite(value)||value<min||value>max||(integer&&!Number.isInteger(value)))throw Error(`${label}에는 ${min}~${max} 범위의 ${integer?'정수':'숫자'}를 입력합니다.`);return value;
+}
+function routeDate(value){
+ if(typeof value!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(value))throw Error('운행 기간을 YYYY-MM-DD 형식의 날짜로 입력합니다.');
+ const d=new Date(value+'T00:00:00Z');if(!Number.isFinite(d.getTime())||d.toISOString().slice(0,10)!==value||d.getUTCFullYear()<2000||d.getUTCFullYear()>2100)throw Error('운행 기간은 2000~2100년의 날짜로 입력합니다.');return d;
+}
+function buildRouteTables(design){
+ if(!design||design.version!==1)throw Error('노선 설계 파일의 version은 1이어야 합니다.');
+ if(typeof design.route_name!=='string'||!design.route_name.trim()||design.route_name.length>60)throw Error('노선 이름은 1~60자입니다.');
+ const first=routeTime(design.first_departure),last=routeTime(design.last_departure);
+ if(last<first)throw Error('출발 마감시각은 첫차 출발시각보다 이르지 않아야 합니다. 자정 이후 시각은 24:00 이상으로 입력합니다.');
+ const headway=routeNumber(design.headway_minutes,1,180,'배차간격',true)*60;
+ const dwell=routeNumber(design.dwell_seconds,0,600,'정차시간',true),departures=[];
+ if(Math.floor((last-first)/headway)+1>500)throw Error('이 실습에서는 운행을 500회까지 만듭니다. 출발 범위나 배차간격을 조정합니다.');
+ for(let t=first;t<=last;t+=headway)departures.push(t);
+ const start=routeDate(design.start_date),end=routeDate(design.end_date);
+ if(end<start)throw Error('운행 종료일은 시작일과 같거나 이후여야 합니다.');
+ if(!Array.isArray(design.weekdays)||!design.weekdays.length||design.weekdays.some(d=>!Number.isInteger(d)||d<0||d>6))throw Error('운행 요일을 하나 이상 선택합니다.');
+ const nDays=Math.min(7,Math.floor((end-start)/86400000)+1),weekday=(start.getUTCDay()+6)%7;
+ if(!Array.from({length:nDays},(_,i)=>(weekday+i)%7).some(d=>design.weekdays.includes(d)))throw Error('선택한 기간에 운행 요일이 없습니다.');
+ if(!Array.isArray(design.stops)||design.stops.length<2||design.stops.length>30)throw Error('정류장 방문 횟수는 한 운행당 2~30회로 설정합니다.');
+ const unique=new Map(),offsets=[];let elapsed=0,previousId=null;
+ design.stops.forEach((s,i)=>{
+  if(!s||typeof s.id!=='string'||!/^[A-Za-z0-9_.-]+$/.test(s.id))throw Error('정류장 식별자는 영문·숫자·밑줄·점·하이픈으로 적습니다.');
+  if(s.id===previousId)throw Error('같은 정류장을 바로 이어서 방문할 수 없습니다.');previousId=s.id;
+  if(typeof s.name!=='string'||!s.name.trim()||s.name.length>100)throw Error('정류장 이름은 1~100자입니다.');
+  const lat=routeNumber(s.lat,-90,90,'위도'),lon=routeNumber(s.lon,-180,180,'경도'),row=[s.id,s.name.trim(),lat,lon];
+  if(unique.has(s.id)&&JSON.stringify(unique.get(s.id))!==JSON.stringify(row))throw Error('같은 stop_id의 이름과 좌표가 서로 다릅니다.');unique.set(s.id,row);
+  elapsed+=Math.round(routeNumber(s.travel_minutes,i?.5:0,i?120:0,'구간 주행시간')*60);
+  const arrival=elapsed;if(i>0&&i<design.stops.length-1)elapsed+=dwell;offsets.push([arrival,elapsed]);
+ });
+ if(departures.at(-1)+elapsed>=48*3600)throw Error('이 실습에서는 마지막 도착이 48시 이전이어야 합니다.');
+ const trips=[],visits=[];
+ departures.forEach((departure,k)=>{
+  const tid='EDU_TRIP_'+String(k+1).padStart(3,'0');trips.push(['EDU_ROUTE_01','EDU_SERVICE_01',tid,0]);
+  design.stops.forEach((stop,i)=>visits.push([tid,clock(departure+offsets[i][0]),clock(departure+offsets[i][1]),stop.id,i+1]));
+ });
+ return {
+  agency:{columns:['agency_id','agency_name','agency_url','agency_timezone'],rows:[['EDU_AGENCY','수업용 가상 운영기관','https://example.org/','Asia/Seoul']]},
+  stops:{columns:['stop_id','stop_name','stop_lat','stop_lon'],rows:[...unique.values()]},
+  routes:{columns:['route_id','agency_id','route_short_name','route_type'],rows:[['EDU_ROUTE_01','EDU_AGENCY',design.route_name.trim(),3]]},
+  trips:{columns:['route_id','service_id','trip_id','direction_id'],rows:trips},
+  stop_times:{columns:['trip_id','arrival_time','departure_time','stop_id','stop_sequence'],rows:visits},
+  calendar:{columns:['service_id',...ROUTE_DAYS,'start_date','end_date'],rows:[['EDU_SERVICE_01',...ROUTE_DAYS.map((_,i)=>Number(design.weekdays.includes(i))),design.start_date.replaceAll('-',''),design.end_date.replaceAll('-','')]]}
+ };
+}
+function routeCsv(table){
+ const quote=v=>{const s=String(v);return /[",\r\n]/.test(s)?'"'+s.replaceAll('"','""')+'"':s;};
+ return [table.columns,...table.rows].map(row=>row.map(quote).join(',')).join('\r\n')+'\r\n';
+}
+// 무압축 ZIP(STORE). 외부 라이브러리 없이 CSV 원문을 UTF-8로 묶습니다.
+function routeZip(files){
+ const encoder=new TextEncoder(),local=[],central=[];let offset=0;
+ function crc32(bytes){let crc=0xffffffff;for(const byte of bytes){crc^=byte;for(let k=0;k<8;k++)crc=(crc>>>1)^((crc&1)?0xedb88320:0);}return(crc^0xffffffff)>>>0;}
+ for(const [name,text]of Object.entries(files)){
+  const filename=encoder.encode(name),body=encoder.encode(text),crc=crc32(body);
+  const header=new Uint8Array(30+filename.length),h=new DataView(header.buffer);
+  h.setUint32(0,0x04034b50,true);h.setUint16(4,20,true);h.setUint16(6,0x0800,true);h.setUint16(12,33,true);
+  h.setUint32(14,crc,true);h.setUint32(18,body.length,true);h.setUint32(22,body.length,true);h.setUint16(26,filename.length,true);header.set(filename,30);
+  local.push(header,body);
+  const directory=new Uint8Array(46+filename.length),d=new DataView(directory.buffer);
+  d.setUint32(0,0x02014b50,true);d.setUint16(4,20,true);d.setUint16(6,20,true);d.setUint16(8,0x0800,true);d.setUint16(14,33,true);
+  d.setUint32(16,crc,true);d.setUint32(20,body.length,true);d.setUint32(24,body.length,true);d.setUint16(28,filename.length,true);d.setUint32(42,offset,true);directory.set(filename,46);central.push(directory);
+  offset+=header.length+body.length;
+ }
+ const end=new Uint8Array(22),e=new DataView(end.buffer),size=central.reduce((sum,b)=>sum+b.length,0);
+ e.setUint32(0,0x06054b50,true);e.setUint16(8,central.length,true);e.setUint16(10,central.length,true);e.setUint32(12,size,true);e.setUint32(16,offset,true);
+ return new Blob([...local,...central,end],{type:'application/zip'});
+}
+function routeDownload(blob,name){const a=document.createElement('a'),url=URL.createObjectURL(blob);a.href=url;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),30000);}
+function builderRemember(){builderHistory.push(JSON.stringify(builderDesign));if(builderHistory.length>40)builderHistory.shift();}
+function builderPersist(){
+ try{localStorage.setItem(ROUTE_STORE,JSON.stringify(builderDesign));$('builder-saved').textContent='브라우저에 자동 저장됨';}
+ catch{$('builder-saved').textContent='설계 JSON으로 저장할 수 있습니다.';}
+}
+function builderCommit(edit,redrawStops=true){builderRemember();edit();if(builderDesign.stops.length)builderDesign.stops[0].travel_minutes=0;builderPersist();renderBuilder(redrawStops);}
+function checkDesignDocument(d){
+ if(!d||d.version!==1||typeof d.route_name!=='string'||!Array.isArray(d.stops)||d.stops.length>30||!Array.isArray(d.weekdays))throw Error('이 화면에서 저장한 노선 설계 JSON을 선택합니다.');
+ for(const s of d.stops){
+  if(!s||typeof s.id!=='string'||!/^[A-Za-z0-9_.-]+$/.test(s.id)||typeof s.name!=='string'||typeof s.custom!=='boolean')throw Error('정류장 정보가 올바르지 않습니다.');
+  routeNumber(s.lat,-90,90,'위도');routeNumber(s.lon,-180,180,'경도');if(s.travel_minutes!==null)routeNumber(s.travel_minutes,0,120,'구간 주행시간');
+  const original=builderCatalogById.get(s.id);
+  if(original&&(Math.abs(original[2]-s.lon)>1e-7||Math.abs(original[3]-s.lat)>1e-7||original[1]!==s.name))throw Error('기존 stop_id의 이름이나 좌표를 바꿀 수 없습니다. 새 정류장으로 추가합니다.');
+  if(!original&&!s.custom)throw Error('현재 자료에 없는 정류장입니다. 새 정류장으로 추가합니다.');
+ }
+ // 빈칸이나 작성 중인 시간표도 설계로 보관할 수 있지만, GTFS 내보내기는 따로 검사합니다.
+ for(const key of ['first_departure','last_departure','start_date','end_date'])if(typeof d[key]!=='string')throw Error('설계의 시각·날짜 필드가 없습니다.');
+ for(const key of ['headway_minutes','dwell_seconds'])if(d[key]!==null&&typeof d[key]!=='number')throw Error('설계의 시간 값이 올바르지 않습니다.');
+ return d;
+}
+try{const saved=localStorage.getItem(ROUTE_STORE);builderDesign=saved?checkDesignDocument(JSON.parse(saved)):exampleDesign();}
+catch{builderDesign=exampleDesign();}
+const builderMap=new BuilderRoadMap(builderCatalog,DATA.builderRoads||[],DATA.boundary,s=>{
+ const original=builderCatalogById.get(s[0]);addBuilderStop({id:s[0],name:s[1],lon:s[2],lat:s[3],custom:!original});
+},(lat,lon)=>{
+ const snapped=builderMap.snapIndex.nearest(lon,lat);
+ if(!snapped){$('builder-map-message').textContent='클릭한 지점에서 40 m 이내에 스냅할 수 있는 도로가 없습니다. 지도를 확대해 일반 도로 위의 지점을 선택합니다.';return;}
+ const added=addBuilderPoint(snapped.lat,snapped.lon);
+ if(added)$('builder-map-message').textContent=`정류장 신설: ${added.name} · ${snapped.name||'도로'} 위에 배치했습니다. 클릭한 지점에서 약 ${Math.round(snapped.distance)} m 이동한 위치입니다.`;
+ builderMap.clearPreview();
+});
+$('builder-in').onclick=()=>builderMap.map?.zoomIn();$('builder-out').onclick=()=>builderMap.map?.zoomOut();$('builder-fit').onclick=()=>builderMap.fit();
+$('builder-map-mode').onchange=()=>{builderMap.clearPreview();$('builder-map-message').textContent=$('builder-map-mode').value==='new'?'일반 도로 위의 지점을 선택하면 신설 정류장이 주황색으로 표시됩니다.':'기존 정류장을 클릭하면 방문 순서의 마지막에 추가합니다.';};
+if(!DATA.builderRoads?.length){$('builder-map-mode').querySelector('[value="new"]').disabled=true;}
+function addBuilderStop(stop){
+ if(builderDesign.stops.length>=30){$('builder-map-message').textContent='이 실습에서는 한 운행의 정류장 방문을 최대 30회까지 설정할 수 있습니다.';return;}
+ if(builderDesign.stops.at(-1)?.id===stop.id){$('builder-map-message').textContent='마지막에 이미 추가한 정류장입니다.';return;}
+ builderCommit(()=>builderDesign.stops.push({...stop,travel_minutes:builderDesign.stops.length?3:0}));$('builder-map-message').textContent=`정류장 추가: ${stop.name} (${builderDesign.stops.length}번째 방문)`;return stop;
+}
+function addBuilderPoint(lat,lon,name){
+ try{routeNumber(lat,-90,90,'위도');routeNumber(lon,-180,180,'경도');if(name!==undefined&&!name.trim())throw Error('새 정류장 이름을 입력합니다.');}
+ catch(e){$('builder-map-message').textContent=e.message;return;}
+ let n=1;while(builderDesign.stops.some(s=>s.id===`EDU_STOP_${String(n).padStart(3,'0')}`)||builderCatalogById.has(`EDU_STOP_${String(n).padStart(3,'0')}`))n++;
+ return addBuilderStop({id:`EDU_STOP_${String(n).padStart(3,'0')}`,name:name?.trim()||`새 정류장 ${n}`,lat:+lat.toFixed(6),lon:+lon.toFixed(6),custom:true});
+}
+function renderBuilderStops(){
+ $('builder-stops').innerHTML=builderDesign.stops.map((s,i)=>`<li><div class="builder-stop-head"><b>${i+1}</b>${s.custom?`<input type="text" data-name="${i}" value="${esc(s.name)}" maxlength="100" aria-label="${i+1}번째 정류장 이름">`:`<strong>${esc(s.name)}</strong>`}</div><div class="builder-stop-info">${esc(s.id)} · ${s.lat.toFixed(6)}, ${s.lon.toFixed(6)}</div><div class="builder-stop-controls"><label>구간 주행시간 <input type="number" data-travel="${i}" value="${s.travel_minutes??''}" min="${i?.5:0}" max="${i?120:0}" step="0.5" ${i?'':'disabled'} aria-label="${i+1}번째 정류장까지의 주행시간">분</label><button data-move="${i}" data-delta="-1" ${i?'':'disabled'} aria-label="${i+1}번째 정류장을 앞으로">↑</button><button data-move="${i}" data-delta="1" ${i<builderDesign.stops.length-1?'':'disabled'} aria-label="${i+1}번째 정류장을 뒤로">↓</button><button data-remove="${i}" aria-label="${i+1}번째 정류장 삭제">삭제</button></div></li>`).join('')||'<li class="muted">지도에서 정류장을 선택하거나 이름으로 검색해 추가합니다.</li>';
+ builderMap.render(builderDesign.stops);
+}
+function renderBuilderSearch(){
+ const q=$('builder-search').value.trim().toLowerCase();if(!q){$('builder-results').innerHTML='';return;}
+ const found=builderCatalog.map((s,i)=>[s,i]).filter(([s])=>(s[0]+' '+s[1]).toLowerCase().includes(q)).slice(0,12);
+ $('builder-results').innerHTML=found.map(([s,i])=>`<button data-catalog="${i}">${esc(s[1])}<small>${esc(s[0])} · ${s[3].toFixed(6)}, ${s[2].toFixed(6)}</small></button>`).join('')||'<p class="small muted">일치하는 정류장이 없습니다.</p>';
+}
+const builderDescriptions={
+ agency:'운영기관 정보를 기록합니다. routes.txt의 agency_id로 노선과 운영기관을 연결합니다.',
+ stops:'정류장별 식별자, 이름과 좌표를 기록합니다. 같은 정류장을 여러 번 방문해도 정류장 정보는 한 행으로 저장합니다.',
+ routes:'노선별 식별자, 이름과 교통수단 유형을 기록합니다. 이 설계에는 노선 한 개를 저장합니다.',
+ trips:'운행별로 한 행을 기록합니다. 같은 노선과 운행일 조건을 사용해도 각 운행에는 서로 다른 trip_id를 부여합니다.',
+ stop_times:'각 운행의 정류장 방문 순서와 도착·출발시각을 기록합니다. trip_id와 stop_sequence의 조합으로 방문 한 건을 구분합니다.',
+ calendar:'service_id별 운행 기간과 요일을 기록합니다. 요일별 값은 1이면 운행, 0이면 미운행을 뜻합니다.'
+};
+function renderBuilderTable(){
+ if(!builderTables)return;
+ const table=builderTables[builderFile],trip=builderTables.trips.rows[builderTrip]?.[2];
+ const rows=builderFile==='stop_times'?table.rows.filter(row=>row[0]===trip):table.rows;
+ $('builder-table-explanation').textContent=`${builderFile}.txt · ${builderDescriptions[builderFile]} ${builderRaw?`데이터는 ${num(table.rows.length)}행이며, 첫 줄의 컬럼명은 행 수에 포함하지 않습니다.`:builderFile==='stop_times'?`운행 ${trip}의 방문 기록 ${rows.length}행을 표시합니다. TXT 원문에는 모든 운행을 저장합니다.`:`전체 ${num(rows.length)}행입니다.`}`;
+ $('builder-table-head').innerHTML='<tr>'+table.columns.map(name=>`<th>${esc(name)}</th>`).join('')+'</tr>';
+ $('builder-table-body').innerHTML=rows.map(row=>'<tr>'+row.map((v,i)=>`<td${table.columns[i].endsWith('_id')?' class="builder-key"':''}>${esc(v)}</td>`).join('')+'</tr>').join('');
+ $('builder-source').textContent=routeCsv(table);$('builder-source-wrap').hidden=!builderRaw;$('builder-table-wrap').hidden=builderRaw;
+ $('builder-show-table').setAttribute('aria-pressed',!builderRaw);$('builder-show-raw').setAttribute('aria-pressed',builderRaw);
+ $('builder-trip').closest('label').hidden=builderFile!=='stop_times'||builderRaw;
+ document.querySelectorAll('[data-file]').forEach(b=>{b.classList.toggle('selected',b.dataset.file===builderFile);b.setAttribute('aria-pressed',b.dataset.file===builderFile);});
+}
+function renderBuilderRide(){
+ if(!builderTables)return;
+ const from=+$('builder-board').value,to=+$('builder-alight').value;
+ try{
+  const ready=routeTime($('builder-ready').value);
+  if(to<=from){$('builder-ride-result').textContent='하차 정류장은 방문 순서상 승차 정류장보다 뒤에 있어야 합니다.';return;}
+  const n=builderDesign.stops.length,visits=builderTables.stop_times.rows;
+  let chosen=null;
+  for(let k=0;k<builderTables.trips.rows.length;k++){
+   const board=routeTime(visits[k*n+from][2]),arrival=routeTime(visits[k*n+to][1]);
+   if(board>=ready){chosen={trip:builderTables.trips.rows[k][2],board,arrival};break;}
+  }
+  if(!chosen){$('builder-ride-result').textContent='입력한 정류장 도착시각 이후에는 승차할 수 있는 운행이 없습니다. 시간표와 승객의 도착시각을 확인합니다.';return;}
+  $('builder-ride-result').innerHTML=`<strong>${clock(chosen.board)} 승차 → ${clock(chosen.arrival)} 도착</strong><br>대기시간 ${mins(chosen.board-ready)}분 + 차내시간 ${mins(chosen.arrival-chosen.board)}분 = 통행시간 ${mins(chosen.arrival-ready)}분<br><span class="small mono">trip_id = ${chosen.trip}</span>`;
+ }catch(e){$('builder-ride-result').textContent=e.message;}
+}
+function renderBuilder(redrawStops=true){
+ for(const [id,key]of Object.entries(builderFields))$(id).value=builderDesign[key]??'';
+ $('builder-days').innerHTML=ROUTE_DAYS.map((day,i)=>`<label><input type="checkbox" data-day="${i}" ${builderDesign.weekdays.includes(i)?'checked':''}>${'월화수목금토일'[i]}</label>`).join('');
+ $('builder-undo').disabled=!builderHistory.length;if(redrawStops)renderBuilderStops();
+ try{builderTables=buildRouteTables(builderDesign);$('builder-error').hidden=true;$('builder-output').hidden=false;}
+ catch(e){builderTables=null;$('builder-error').textContent=e.message;$('builder-error').hidden=false;$('builder-output').hidden=true;return;}
+ const n=builderDesign.stops.length,k=builderTables.trips.rows.length,visits=builderTables.stop_times.rows;
+ const counts=Object.fromEntries(Object.entries(builderTables).map(([name,t])=>[name,t.rows.length]));
+ $('builder-counts').innerHTML=Object.entries(counts).map(([name,count])=>{const delta=builderPreviousCounts?count-builderPreviousCounts[name]:0;return`<button data-file="${name}" aria-pressed="false">${name}.txt<b>${num(count)}행</b>${delta?`<span>${delta>0?'+':''}${delta}행</span>`:'<span>열어 보기</span>'}</button>`;}).join('');builderPreviousCounts=counts;
+ $('builder-summary').innerHTML=`<strong>운행 ${k}회 × 운행당 정류장 방문 ${n}회</strong> → <code>stop_times.txt</code> ${k*n}행입니다.<br><span class="small muted">생성한 시간표의 첫 정류장 출발시각: ${visits[0][2]}–${visits[(k-1)*n][2]}. 첫 정류장 출발부터 마지막 정류장 도착까지 ${(routeTime(visits[n-1][1])-routeTime(visits[0][2]))/60}분입니다.</span>`;
+ builderTrip=Math.min(builderTrip,k-1);$('builder-trip').innerHTML=builderTables.trips.rows.map((t,i)=>`<option value="${i}">${t[2]} · ${visits[i*n][2]} 출발</option>`).join('');$('builder-trip').value=builderTrip;
+ const oldBoard=$('builder-board').value,oldAlight=$('builder-alight').value;
+ const options=builderDesign.stops.map((s,i)=>`<option value="${i}">${i+1}. ${esc(s.name)}</option>`).join('');
+ $('builder-board').innerHTML=options;$('builder-alight').innerHTML=options;$('builder-board').value=oldBoard!==''&&+oldBoard<n?oldBoard:0;$('builder-alight').value=oldAlight!==''&&+oldAlight<n?oldAlight:n-1;
+ renderBuilderTable();renderBuilderRide();
+}
+function showBuilder(){builderMap.fit();}
+for(const [id,key]of Object.entries(builderFields))$(id).addEventListener('change',()=>builderCommit(()=>{builderDesign[key]=['headway_minutes','dwell_seconds'].includes(key)?($(id).value===''?null:Number($(id).value)):$(id).value;},false));
+$('builder-days').onchange=()=>builderCommit(()=>builderDesign.weekdays=[...document.querySelectorAll('[data-day]:checked')].map(el=>+el.dataset.day));
+$('builder-stops').onchange=e=>{if(e.target.dataset.travel!==undefined){const i=+e.target.dataset.travel,v=e.target.value===''?null:Number(e.target.value);builderCommit(()=>builderDesign.stops[i].travel_minutes=v,false);}if(e.target.dataset.name!==undefined){const i=+e.target.dataset.name,name=e.target.value;builderCommit(()=>{const id=builderDesign.stops[i].id;builderDesign.stops.filter(s=>s.id===id).forEach(s=>s.name=name);});}};
+$('builder-stops').onclick=e=>{const b=e.target.closest('button');if(!b)return;if(b.dataset.remove!==undefined)builderCommit(()=>builderDesign.stops.splice(+b.dataset.remove,1));else if(b.dataset.move!==undefined)builderCommit(()=>{const i=+b.dataset.move,j=i+Number(b.dataset.delta);[builderDesign.stops[i],builderDesign.stops[j]]=[builderDesign.stops[j],builderDesign.stops[i]];if(i===0)builderDesign.stops[j].travel_minutes=3;if(j===0)builderDesign.stops[i].travel_minutes=3;});};
+$('builder-search').oninput=renderBuilderSearch;$('builder-results').onclick=e=>{const b=e.target.closest('[data-catalog]');if(!b)return;const s=builderCatalog[+b.dataset.catalog];addBuilderStop({id:s[0],name:s[1],lon:s[2],lat:s[3],custom:false});builderMap.focus(s[2],s[3]);};
+$('builder-add-point').onclick=()=>addBuilderPoint($('builder-new-lat').value===''?NaN:Number($('builder-new-lat').value),$('builder-new-lon').value===''?NaN:Number($('builder-new-lon').value),$('builder-new-name').value);
+$('builder-example').onclick=()=>{builderCommit(()=>builderDesign=exampleDesign());$('builder-board').value=0;$('builder-alight').value=builderDesign.stops.length-1;renderBuilderRide();showBuilder();};
+$('builder-clear').onclick=()=>builderCommit(()=>builderDesign.stops=[]);
+$('builder-undo').onclick=()=>{if(!builderHistory.length)return;builderDesign=JSON.parse(builderHistory.pop());builderPersist();renderBuilder();};
+$('builder-counts').onclick=e=>{const b=e.target.closest('[data-file]');if(b){builderFile=b.dataset.file;renderBuilderTable();}};
+$('builder-trip').onchange=()=>{builderTrip=+$('builder-trip').value;renderBuilderTable();};
+$('builder-show-table').onclick=()=>{builderRaw=false;renderBuilderTable();};$('builder-show-raw').onclick=()=>{builderRaw=true;renderBuilderTable();};
+$('builder-download').onclick=()=>{if(!builderTables)return;const files=Object.fromEntries(Object.entries(builderTables).map(([name,t])=>[name+'.txt',routeCsv(t)]));routeDownload(routeZip(files),'my_route_gtfs.zip');};
+$('builder-download-table').onclick=()=>{if(builderTables)routeDownload(new Blob([routeCsv(builderTables[builderFile])],{type:'text/plain;charset=utf-8'}),builderFile+'.txt');};
+$('builder-save-design').onclick=()=>routeDownload(new Blob([JSON.stringify(builderDesign,null,2)],{type:'application/json'}),'my_route_design.json');
+$('builder-load-design').onchange=async e=>{const file=e.target.files[0];if(!file)return;try{if(file.size>100000)throw Error('설계 파일이 너무 큽니다. 100 KB 이하의 JSON을 선택합니다.');const d=checkDesignDocument(JSON.parse(await file.text()));builderCommit(()=>builderDesign=d);showBuilder();$('builder-map-message').textContent='저장한 설계를 불러왔습니다.';}catch(error){$('builder-map-message').textContent='파일을 불러오지 못했습니다. '+error.message;}e.target.value='';};
+for(const id of ['builder-board','builder-alight','builder-ready'])$(id).onchange=renderBuilderRide;
+renderBuilder();
+</script>
