@@ -82,7 +82,16 @@ class Pattern:
         이 처리는 출발편을 찾는 과정이며 추월하는 모든 경로의 최적성을 보장하지는 않습니다.
         교재 6.3절과 노트북 2절에서 두 경우를 확인합니다.
         """
-        raise NotImplementedError("earliest_trip 을 구현하세요")
+        col = self._dep_by_pos[position]
+        if self._sorted:
+            idx = bisect_left(col, not_before)
+            return idx if idx < len(col) else None
+
+        best_idx, best_time = None, INF
+        for i, t in enumerate(col):
+            if not_before <= t < best_time:
+                best_idx, best_time = i, t
+        return best_idx
 
 
 @dataclass
@@ -208,7 +217,77 @@ def raptor(data, origins, departure_secs, max_rounds=MAX_ROUNDS):
     - 교재 6.4절 순서대로 패턴 수집, 승하차, 도보 연결, 종료를 작성합니다
     - 라운드 k는 k번 이하로 탑승한 답입니다. 이전 답을 복사해 시작합니다
     """
-    raise NotImplementedError("raptor 를 구현하세요")
+    n = data.n_stops
+    best = [INF] * n
+    rounds = [[INF] * n]
+    marked = set()
+
+    for stop, walk in origins:
+        t = departure_secs + walk
+        if t < rounds[0][stop]:
+            rounds[0][stop] = t
+            best[stop] = t
+            marked.add(stop)
+
+    if max_rounds == 0:
+        return list(rounds[0])
+
+    for k in range(1, max_rounds + 1):
+        prev = rounds[k - 1]
+        cur = list(rounds[k - 1])
+        rounds.append(cur)
+        new_marked = set()
+
+        # 1. 표시된 정류장을 지나는 패턴을 모읍니다.
+        # 같은 패턴이 여러 정류장에서 걸리면 가장 앞 위치에서 시작합니다.
+        queue = {}
+        for stop in marked:
+            for pattern_idx, pos in data.routes_by_stop[stop]:
+                if pattern_idx not in queue or pos < queue[pattern_idx]:
+                    queue[pattern_idx] = pos
+
+        # 2. 각 패턴을 그 위치부터 끝까지 훑습니다.
+        for pattern_idx, start_pos in queue.items():
+            p = data.patterns[pattern_idx]
+            trip = None
+            board_pos = 0
+            for pos in range(start_pos, len(p.stops)):
+                stop = p.stops[pos]
+
+                # (1) 내리기: 손에 든 차가 있으면 이 정류장의 도착시각으로 내려 봅니다
+                if trip is not None:
+                    arrive = p.arrivals[trip][pos]
+                    if arrive < best[stop]:
+                        best[stop] = arrive
+                        cur[stop] = arrive
+                        new_marked.add(stop)
+
+                # (2) 타기: 직전 라운드에 이 정류장에 도달했다면, 여기서 더 이른 차를 탈 수 있는지 봅니다
+                ready = prev[stop]
+                if ready < INF:
+                    candidate = p.earliest_trip(pos, int(ready))
+                    if candidate is not None and (
+                        trip is None or p.departures[candidate][pos] < p.departures[trip][pos]
+                    ):
+                        trip = candidate
+                        board_pos = pos
+
+        # 3. 이번 라운드에 도달한 정류장에서 걸어갈 수 있는 곳을 채웁니다
+        for stop in list(new_marked):
+            base = cur[stop]
+            for other, seconds in data.transfers[stop]:
+                arrive = base + seconds
+                if arrive < best[other]:
+                    best[other] = arrive
+                    cur[other] = arrive
+                    new_marked.add(other)
+
+        # 4. 개선된 정류장이 없으면 끝냅니다
+        if not new_marked:
+            break
+        marked = new_marked
+
+    return best
 
 
 # --------------------------------------------------------------------------- #
